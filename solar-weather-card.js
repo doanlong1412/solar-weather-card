@@ -14,6 +14,10 @@
  *   - Particle mode: bong bóng chạy dọc đường cong Bezier, có glow + sparkle
  *   - Layout node particle mode rộng hơn, đường cong mềm mại hơn
  *   - pvDC hiển thị điện áp PV trong inverter box (particle mode)
+ * Changelog v1.3.1:
+ *   - Fix tính ETA sạc/xả: LuxPower trả Ah → nhân voltage thực tế ra Wh
+ *   - Thêm ô nhập tay Wh nếu không có sensor
+ *   - Mặc định 560Ah × 48V = 26880 Wh
  */
 
 // ═══════════════════════════════════════════════════════════════
@@ -48,7 +52,8 @@ class SolarWeatherCardEditor extends HTMLElement {
       { key: 'battery_soc_entity',       label: '🔋 Pin % (SOC)',                required: true  },
       { key: 'battery_flow_entity',      label: '🔋 Luồng pin (W, +sạc / -xả)', required: true  },
       { key: 'battery_voltage_entity',   label: '🔋 Điện áp pin (V DC)',         required: false },
-      { key: 'battery_capacity_entity',  label: '🔋 Dung lượng pin (Wh)',        required: false },
+      { key: 'battery_capacity_entity',  label: '🔋 Sensor dung lượng pin (Ah) — LuxPower: lux_battery_capacity', required: false },
+      { key: 'battery_capacity_wh',      label: '🔋 Dung lượng pin (Wh) — nhập tay nếu không có sensor, vd: 26880', required: false },
       { key: 'grid_flow_entity',         label: '🔌 Luồng lưới điện (W)',        required: true  },
       { key: 'grid_voltage_entity',      label: '🔌 Điện áp lưới (V AC)',        required: false },
       { key: 'home_consumption_entity',  label: '🏠 Tiêu thụ nhà (W)',           required: true  },
@@ -263,6 +268,7 @@ class SolarWeatherCard extends HTMLElement {
       solar_pv1_voltage_entity: '', solar_pv2_voltage_entity: '',
       battery_soc_entity: '', battery_flow_entity: '',
       battery_voltage_entity: '', battery_capacity_entity: '',
+      battery_capacity_wh: '',
       grid_flow_entity: '', grid_voltage_entity: '',
       home_consumption_entity: '', solar_today_entity: '',
       consumption_today_entity: '', inverter_status_entity: '',
@@ -424,17 +430,34 @@ class SolarWeatherCard extends HTMLElement {
     const isDisch   = battFlW < -10;
     const battW     = Math.abs(battFlW).toFixed(0);
     const battDir   = isCharge ? '🔋⚡ Sạc' : (isDisch ? '🔋🔁 Xả' : '⏳ Stanby');
-    const bVolt     = this._gf('battery_voltage_entity', 0).toFixed(0);
+    const bVolt     = parseFloat(this._gf('battery_voltage_entity', 48));
     const bPct      = Math.round(battSoc);
-    const battCapWh = this._gf('battery_capacity_entity', 30720);
+
+    // Tính dung lượng pin (Wh):
+    // 1. Nhập tay Wh (battery_capacity_wh) → ưu tiên cao nhất
+    // 2. Sensor Ah × Voltage thực (LuxPower trả Ah, vd: 560Ah × 48V = 26880Wh)
+    // 3. Mặc định 560Ah × 48V = 26880 Wh
+    const manualWh   = parseFloat(this._config.battery_capacity_wh || 0);
+    const sensorAh   = this._gf('battery_capacity_entity', 0);
+    const voltForCap = bVolt > 10 ? bVolt : 48;
+    let battCapWh;
+    if (manualWh > 0) {
+      battCapWh = manualWh;
+    } else if (sensorAh > 0) {
+      battCapWh = sensorAh * voltForCap;
+    } else {
+      battCapWh = 560 * 48;
+    }
 
     let battETA = '';
     if (isCharge && battFlW > 0) {
-      const eta = Math.round((100-battSoc)/100*battCapWh/battFlW*60);
-      if (eta > 0 && eta < 14400) battETA = '⚡ Thời gian dự kiến đầy pin: '+(eta>=60?Math.floor(eta/60)+'h ':'')+eta%60+'m';
+      const eta = Math.round((100 - battSoc) / 100 * battCapWh / battFlW * 60);
+      if (eta > 0 && eta < 14400)
+        battETA = '⚡ Thời gian dự kiến đầy pin: ' + (eta >= 60 ? Math.floor(eta/60) + 'h ' : '') + eta%60 + 'm';
     } else if (isDisch && Math.abs(battFlW) > 0) {
-      const eta2 = Math.round(battSoc/100*battCapWh/Math.abs(battFlW)*60);
-      if (eta2 > 0 && eta2 < 14400) battETA = '🔁 Thời gian sử dụng dự kiến còn: '+(eta2>=60?Math.floor(eta2/60)+'h ':'')+eta2%60+'m';
+      const eta2 = Math.round(battSoc / 100 * battCapWh / Math.abs(battFlW) * 60);
+      if (eta2 > 0 && eta2 < 14400)
+        battETA = '🔁 Thời gian sử dụng dự kiến còn: ' + (eta2 >= 60 ? Math.floor(eta2/60) + 'h ' : '') + eta2%60 + 'm';
     }
 
     // ── Grid ──
