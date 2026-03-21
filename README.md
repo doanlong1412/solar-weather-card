@@ -1,23 +1,30 @@
 # ☀️ Solar Weather Card
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-1.1.0-blue)
+![version](https://img.shields.io/badge/version-1.2.0-blue)
 ![HA](https://img.shields.io/badge/Home%20Assistant-2023.1+-green)
 
-Custom card cho Home Assistant hiển thị toàn bộ hệ thống năng lượng mặt trời — Solar, Battery, Grid, tiêu thụ điện gia đình — kèm thời tiết và đồng hồ.
+Custom card cho Home Assistant hiển thị toàn bộ hệ thống năng lượng mặt trời — Solar, Battery, Grid, tiêu thụ điện gia đình — kèm thời tiết động và đồng hồ.
 
-> **Không cần cài thêm bất kỳ plugin nào.** Hoạt động độc lập, cấu hình entity hoàn toàn qua giao diện kéo thả.
+> **Không cần cài thêm bất kỳ plugin nào.** Hoạt động độc lập, cấu hình entity hoàn toàn qua giao diện.
+
+---
+
+## 📸 Preview
+
+![Solar Weather Card Preview](assets/preview.png)
 
 ---
 
 ## ✨ Tính năng
 
 - 🕐 **Đồng hồ & Ngày** theo giờ Việt Nam, tự cập nhật mỗi 30 giây
-- 🌤️ **Thời tiết** hiện tại + dự báo ngày mai (nhiệt độ cao/thấp)
+- 🌤️ **Icon thời tiết CSS animation động** — nắng quay, mưa rơi, sét chớp, sương mù trôi, gió thổi
+- 🌍 **Thời tiết tiếng Việt** + dự báo ngày mai có icon thu nhỏ
 - 🌅 **Cung mặt trời / mặt trăng** động theo giờ thực tế
 - ⚡ **Luồng điện animated** (Solar → Inverter → Battery / Grid / Home)
 - 🔋 **Pin**: % sạc, chiều sạc/xả, ETA đầy pin hoặc thời gian sử dụng còn lại
-- 📊 **Thống kê hôm nay**: Solar kWh, tiêu thụ, tiết kiệm điện (tính theo bậc thang EVN)
+- 📊 **Thống kê hôm nay**: Solar kWh, tiêu thụ, tiết kiệm điện (bậc thang EVN)
 - ⚙️ **System status**: trạng thái inverter, nhiệt độ inverter & BMS
 - 🎛️ **Visual Config Editor** — chọn entity qua UI, không cần sửa YAML
 
@@ -27,15 +34,23 @@ Custom card cho Home Assistant hiển thị toàn bộ hệ thống năng lượ
 
 ### Cách 1 — HACS (khuyên dùng)
 
-1. Mở HACS → **Frontend**
-2. Nhấn ⋮ → **Custom repositories**
-3. Nhập URL repo → Category: **Frontend** → **Add**
-4. Tìm **Solar Weather Card** → **Install**
-5. Reload trình duyệt
+**Bước 1:** Thêm repo này vào HACS bằng cách nhấn nút bên dưới:
+
+[![Open HACS Repository](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=doanlong1412&repository=solar-weather-card&category=frontend)
+
+> Nếu nút không hoạt động, làm thủ công:
+> HACS → Frontend → ⋮ → **Custom repositories**
+> → URL: `https://github.com/doanlong1412/solar-weather-card` → Category: **Frontend** → Add
+
+**Bước 2:** Tìm **Solar Weather Card** → **Install**
+
+**Bước 3:** Reload trình duyệt (Ctrl+Shift+R)
+
+---
 
 ### Cách 2 — Thủ công
 
-1. Tải file `solar-weather-card.js`
+1. Tải file [`solar-weather-card.js`](https://github.com/doanlong1412/solar-weather-card/releases/latest)
 2. Copy vào `/config/www/solar-weather-card.js`
 3. Vào **Settings → Dashboards → Resources** → **Add resource**:
    ```
@@ -54,7 +69,7 @@ Custom card cho Home Assistant hiển thị toàn bộ hệ thống năng lượ
 type: custom:solar-weather-card
 ```
 
-Sau khi thêm card, nhấn **✏️ Edit** → form cấu hình sẽ hiện ra để bạn điền entity.
+Sau khi thêm card, nhấn **✏️ Edit** → form cấu hình sẽ hiện ra để điền entity.
 
 ### Các entity cần cấu hình
 
@@ -120,9 +135,9 @@ battery_temp_entity: sensor.seplos_seplos_bms_v3_ble_pack_0_temperature_1
 
 ---
 
-## 🔋 Tính năng tính tiết kiệm điện
+## 🔋 Tính tiết kiệm điện EVN
 
-Card tự động tính tiết kiệm điện theo **biểu giá bậc thang EVN** (2024):
+Card tự động tính theo **biểu giá bậc thang EVN** (2024):
 
 | Bậc | Từ | Đến | Đơn giá |
 |-----|-----|-----|---------|
@@ -137,12 +152,11 @@ Card tự động tính tiết kiệm điện theo **biểu giá bậc thang EVN
 
 ## 📄 License
 
-MIT License — tự do sử dụng, chỉnh sửa, phân phối.  
+MIT License — tự do sử dụng, chỉnh sửa, phân phối.
 Nếu thấy hữu ích, ⭐ **star repo** để ủng hộ nhé!
 
 ---
 
 ## 🙏 Credits
 
-Thiết kế và phát triển bởi chủ repo.  
-Được hỗ trợ chuyển đổi bởi [Claude AI](https://claude.ai).
+Thiết kế và phát triển bởi **[@doanlong1412](https://github.com/doanlong1412)**.
