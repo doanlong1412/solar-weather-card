@@ -1,13 +1,13 @@
 # ☀️ Solar Weather Card
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-1.4.0-blue)
+![version](https://img.shields.io/badge/version-1.4.1-blue)
 ![HA](https://img.shields.io/badge/Home%20Assistant-2023.1+-green)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
 
 > 🇻🇳 **Phiên bản tiếng Việt:** [README.md](README.md)
 
-A custom Home Assistant card that displays your complete solar energy system — Solar, Battery, Grid, home consumption — alongside an animated weather display, real-time clock, and a live sun/moon arc.
+A custom Home Assistant card that displays your complete solar energy system — Solar, Battery, Grid, home consumption — alongside animated weather, a real-time clock, and a live sun/moon arc.
 
 **No extra plugins required. Works standalone, fully configurable through the built-in UI editor.**
 
@@ -19,41 +19,44 @@ A custom Home Assistant card that displays your complete solar energy system —
 
 ---
 
-## ✨ Features (v1.4.0)
+## ✨ Features (v1.4.1)
 
 ### 🎨 Display & Interface
 - 🕐 **Live clock & date**, auto-updates every 30 seconds
 - 🌤️ **Animated CSS weather icons** — rotating sun, falling rain, lightning flash, drifting fog, blowing wind
-- 🌍 **Today's weather + tomorrow's forecast** with a miniature animated icon
-- 🌅 **Sun / moon arc** that moves in real time based on sunrise/sunset
-- ☀️ **Sun heartbeat animation** — pulsing speed and glow scale with solar output
-- 🌈 **Dynamic sky aura** — colour shifts from cool dawn blues through warm midday yellows to deep dusk oranges
+- 🌍 **Today's weather + tomorrow's forecast** (toggleable)
+- 🌅 **Sun / moon arc** moves in real time based on sunrise/sunset
+- ☀️ **Sun heartbeat** — pulse speed and glow scale with solar output
+- 🌈 **Dynamic sky aura** — colour shifts from dawn blues through midday yellows to dusk oranges
 
 ### ⚡ Energy Flow
-- **Particle Bubble mode** — bubbles travel along Bézier curves with multi-layer glow and white highlight sparkles
-- **Animated Line mode** — dashed stroke animation along the same paths
-- Particle density and speed automatically scale with power level
+- **Particle Bubble** — bubbles travel along Bézier curves with multi-layer glow and white highlight sparkles
+- **Animated Line** — dashed stroke animation along the same paths
+- Speed and density auto-scale with power level; **each flow type has its own optimised scale** (solar / battery / grid / home)
+
+### 🏗️ Node Cards
+- Heartbeat border pulse when energy is flowing
+- **New grid icon**: detailed lattice tower + separate transformer + sagging wires + ceramic insulators
+- **Inverter icon**: spinning fan + animated sine wave + blinking LEDs
+- **House icon**: 3D tiled roof + glowing windows + antenna
+- **Battery icon**: fill bar with colour coding + lightning bolt while charging
 
 ### 🔋 Battery
-- Detailed battery icon with SOC % displayed inside and a lightning bolt when charging
 - Colour-coded bar: 🟢 green (>20%) → 🟡 amber (10–20%) → 🔴 red (≤10%)
 - **Charge / discharge ETA** — supports Ah sensors (LuxPower) multiplied by live voltage to derive Wh
 
-### 🏗️ Node Cards (Inverter, Battery, Grid, Home)
-- Heartbeat border pulse when energy is flowing
-- Detailed 3D icons: inverter with spinning fan + animated sine wave + blinking LEDs, power pole with ceramic insulators, 3D house with tiled roof
-- Bottom bar shows: V BAT, V PV, V AC readings
-
 ### 📊 Stats & System
 - 5-cell stats bar: Solar / From Grid / Consume / Saving / System
-- Savings calculated using **Vietnam EVN tiered pricing**
+- **Custom electricity pricing** — enter your own tiers or use the Vietnam EVN default
+- **Custom currency symbol** — đ / € / $ / £ / ฿ ...
 - Scrolling ticker with weather commentary and battery status
-- Inverter status: ❤️ ON / OFF with colour indicator, inverter & BMS temperatures
 
 ### 🎛️ Customisation
 - **Flow style**: Particle bubble or Animated line
-- **Language**: 🇻🇳 Vietnamese or 🇬🇧 English
-- **Background opacity**: slider from 0–100%
+- **Language**: 🇻🇳 Tiếng Việt / 🇬🇧 English / 🇩🇪 Deutsch / 🇮🇹 Italiano
+- **Tomorrow forecast**: show / hide toggle
+- **Background opacity**: slider 0–100%
+- **Electricity pricing + currency**: fully customisable
 - Visual Config Editor — no YAML editing needed
 
 ---
@@ -78,8 +81,8 @@ A custom Home Assistant card that displays your complete solar energy system —
 
 ### Option 2 — Manual
 
-1. Download [`solar-weather-card.js`](https://github.com/doanlong1412/solar-weather-card/releases/latest) from the Releases page
-2. Copy it to `/config/www/solar-weather-card.js`
+1. Download [`solar-weather-card.js`](https://github.com/doanlong1412/solar-weather-card/releases/latest)
+2. Copy to `/config/www/solar-weather-card.js`
 3. Go to **Settings → Dashboards → Resources** → **Add resource**:
    ```
    URL:  /local/solar-weather-card.js
@@ -98,6 +101,43 @@ type: custom:solar-weather-card
 ```
 
 After adding the card, click **✏️ Edit** — the configuration form will appear so you can enter entity IDs. No manual YAML editing required.
+
+---
+
+### Display options
+
+| Config key | Values | Default | Description |
+|---|---|---|---|
+| `flow_style` | `particle` / `line` | `particle` | Energy flow animation style |
+| `language` | `vi` / `en` / `de` / `it` | `vi` | Display language |
+| `background_opacity` | `0` – `100` | `45` | Card background opacity (%) |
+| `show_tomorrow` | `true` / `false` | `true` | Show / hide tomorrow's forecast |
+| `currency` | any symbol | `đ` | Currency symbol for savings display |
+| `pricing_tiers` | see below | Vietnam EVN | Custom electricity pricing tiers |
+
+---
+
+### Custom electricity pricing
+
+Leave `pricing_tiers` empty to use the built-in **Vietnam EVN tiered pricing**.
+
+To enter your own rates, use the format: `limit_kWh:rate` separated by commas.
+Use `∞` or `inf` for the final (unlimited) tier.
+
+**Example — German electricity (€/kWh):**
+```
+50:0.25,100:0.28,∞:0.32
+```
+
+**Example — Italian electricity (€/kWh):**
+```
+100:0.18,300:0.24,∞:0.30
+```
+
+**Example — flat rate (e.g. USD $0.15/kWh):**
+```
+∞:0.15
+```
 
 ---
 
@@ -151,18 +191,10 @@ After adding the card, click **✏️ Edit** — the configuration form will app
 | 📊 Solar today (kWh) | Solar generation today | |
 | 📊 Consumption today (kWh) | Total consumption today | |
 | ⚙️ Inverter status | State: Normal / online / OFF | |
+| 🔘 Inverter switch | Switch entity for grid-direct mode detection | |
+| 🔌 Grid-direct power (W) | Power drawn directly from grid when inverter is off | |
 | 🌡️ Inverter temperature (°C) | Inverter internal temp | |
 | 🌡️ BMS temperature (°C) | Battery BMS temperature | |
-
----
-
-### Display options
-
-| Config key | Values | Default | Description |
-|---|---|---|---|
-| `flow_style` | `particle` / `line` | `particle` | Energy flow animation style |
-| `language` | `vi` / `en` | `vi` | Display language |
-| `background_opacity` | `0` – `100` | `45` | Card background opacity (%) |
 
 ---
 
@@ -173,10 +205,13 @@ type: custom:solar-weather-card
 flow_style: particle
 language: en
 background_opacity: 45
+show_tomorrow: true
+currency: đ
+# pricing_tiers: ""  # leave empty = use Vietnam EVN default
 
 weather_entity: weather.forecast_home
-temperature_entity: sensor.outdoor_temperature
-humidity_entity: sensor.outdoor_humidity
+temperature_entity: sensor.outdoor_temperature_aht20
+humidity_entity: sensor.outdoor_humidity_aht20
 pressure_entity: sensor.outdoor_pressure
 uv_entity: sensor.uv_index
 rain_entity: sensor.rain_forecast
@@ -200,15 +235,15 @@ solar_today_entity: sensor.solar_today_kwh
 consumption_today_entity: sensor.consumption_today_kwh
 
 inverter_status_entity: sensor.luxpower
+inverter_switch_entity: switch.inverter_lux_inverter
+grid_direct_entity: sensor.grid_direct_power
 inverter_temp_entity: sensor.lux_internal_temperature_live
 battery_temp_entity: sensor.bms_temperature
 ```
 
 ---
 
-## 🔋 EVN Tiered Electricity Pricing
-
-The card calculates daily savings using **Vietnam EVN tiered pricing** (2024):
+## 🔋 Default Vietnam EVN Pricing (2024)
 
 | Tier | Range | Rate |
 |------|-------|------|
@@ -219,7 +254,7 @@ The card calculates daily savings using **Vietnam EVN tiered pricing** (2024):
 | 5 | 301 – 400 kWh | 3,350 ₫/kWh |
 | 6 | 400+ kWh | 3,460 ₫/kWh |
 
-The saving shown is the estimated value of solar energy generated today, had it been purchased from the grid at tiered rates.
+The saving figure is the estimated value of today's solar generation had it been purchased from the grid at tiered rates.
 
 ---
 
@@ -237,17 +272,24 @@ The saving shown is the estimated value of solar energy generated today, had it 
 
 ## 📋 Changelog
 
+### v1.4.1
+- 🗼 New grid icon: detailed lattice tower + separate transformer + sagging wires + ceramic insulators
+- ⚡ Type-based flowLevel — separate optimised scale for solar / battery / grid / home flows
+- 🌐 Added 🇩🇪 Deutsch and 🇮🇹 Italiano — language selector is now a dropdown
+- 🌤️ Toggle to show/hide tomorrow's forecast (`show_tomorrow`)
+- 💰 Custom electricity pricing tiers (`pricing_tiers`) + custom currency symbol (`currency`)
+- 🔘 Support for inverter switch entity + grid-direct flow path when inverter is off
+
 ### v1.4.0
-- ✨ Completely new node cards: heartbeat border, hex grid background, detailed 3D icons
+- ✨ Completely new node cards: heartbeat border, hex grid, detailed 3D icons
 - ☀️ Sun heartbeat animation scales with solar power output
 - 🌈 Dynamic sky aura changes colour throughout the day
 - ✦ Improved particle system: white highlight layer + separate glow layer
 - 📜 Scrolling ticker with weather commentary and battery status
 - 📊 5-cell stats bar: Solar / From Grid / Consume / Saving / System
-- 🔋 Battery bar colour-codes by charge level (red / amber / green)
-- 🌐 Language toggle: Vietnamese 🇻🇳 / English 🇬🇧
-- 🪟 Background opacity slider (0–100%)
-- 🔌 Added `grid_today_entity` for grid import tracking
+- 🔋 Battery bar colour-codes by charge level
+- 🌐 Language toggle: VI / EN
+- 🪟 Background opacity slider
 
 ### v1.3.1
 - 🐛 Fixed ETA calculation: LuxPower returns Ah — multiply by live voltage to get Wh
@@ -259,11 +301,9 @@ The saving shown is the estimated value of solar energy generated today, had it 
 
 ### v1.2.0
 - 🌤️ Animated CSS weather icons
-- 🌍 Vietnamese weather condition labels
 
 ### v1.1.0
 - 🎛️ Visual Config Editor
-- 📡 All entities configurable through the UI
 
 ### v1.0.0
 - 🚀 Initial release
