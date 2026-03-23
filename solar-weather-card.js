@@ -40,6 +40,7 @@
  *   - Tùy chọn thang giá tùy chỉnh + đơn vị tiền tệ
  *     (nếu không nhập → mặc định EVN VNĐ)
  *
+ *
  * Solar Weather Card v1.5.1
  * Changelog v1.5.0:
  *   - Flow style thứ 3: "wave" — sóng sin + dust particles + bright dots
@@ -47,6 +48,9 @@
  *   - Xóa label công suất cạnh flow (chỉ hiển thị trong node card)
  *   - ha-entity-picker trong Editor — dropdown chọn entity như HA native
  *   - Giữ nguyên tất cả tính năng v1.4.1
+ *
+ * Solar Weather Card v1.5.2
+ * Changelog v1.5.1
  */
 
 // ═══════════════════════════════════════════════════════════════
@@ -287,7 +291,9 @@ class SolarWeatherCardEditor extends HTMLElement {
       id:'battery', label:'🔋 Battery',
       fields:[
         {k:'battery_soc_entity',       l:'🔋 Battery SOC (%)',               r:true,  domain:'sensor'},
-        {k:'battery_flow_entity',      l:'🔋 Battery flow (W, +charge/-discharge)', r:true, domain:'sensor'},
+        {k:'battery_flow_entity',      l:'🔋 Battery flow (W, +charge/-discharge)', r:false, domain:'sensor'},
+        {k:'battery_charge_entity',    l:'🔋 Battery charge sensor (W)',     r:false, domain:'sensor'},
+        {k:'battery_discharge_entity', l:'🔋 Battery discharge sensor (W)',  r:false, domain:'sensor'},
         {k:'battery_voltage_entity',   l:'🔋 Battery voltage (V DC)',        r:false, domain:'sensor'},
         {k:'battery_capacity_entity',  l:'🔋 Capacity sensor (Ah)',          r:false, domain:'sensor'},
         {k:'battery_capacity_wh',      l:'🔋 Capacity manual (Wh) — e.g. 26880', r:false, domain:null},
@@ -297,7 +303,9 @@ class SolarWeatherCardEditor extends HTMLElement {
     {
       id:'grid', label:'🔌 Grid & Home',
       fields:[
-        {k:'grid_flow_entity',         l:'🔌 Grid flow (W, +export/-import)', r:true, domain:'sensor'},
+        {k:'grid_flow_entity',         l:'🔌 Grid flow (W, +export/-import)', r:false, domain:'sensor'},
+        {k:'grid_import_entity',       l:'🔌 Grid import sensor (W)',         r:false, domain:'sensor'},
+        {k:'grid_export_entity',       l:'🔌 Grid export sensor (W)',         r:false, domain:'sensor'},
         {k:'grid_voltage_entity',      l:'🔌 Grid voltage (V AC)',            r:false, domain:'sensor'},
         {k:'grid_today_entity',        l:'🔌 Grid import today (kWh)',        r:false, domain:'sensor'},
         {k:'home_consumption_entity',  l:'🏠 Home consumption (W)',           r:true,  domain:'sensor'},
@@ -362,10 +370,102 @@ class SolarWeatherCardEditor extends HTMLElement {
 
   _sectionHTML(sec){
     const isOpen=this._open[sec.id];
-    // count how many fields are filled
     const filled=sec.fields.filter(f=>this._config[f.k]).length;
     const total=sec.fields.length;
     const badge=filled>0?`<span style="background:var(--primary-color);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:8px;">${filled}/${total}</span>`:'';
+
+    // Options block ở đầu body cho Battery và Grid
+    let optionsHTML = '';
+    if(sec.id==='solar'){
+      const solarUnit = this._config.solar_unit||'auto';
+      const homeUnit  = this._config.home_unit||'auto';
+      optionsHTML = `<div class="sec-opts">
+        <div class="opt-row" style="margin-bottom:4px">
+          <label style="font-size:12px;font-weight:600">☀️ Solar power unit</label>
+          <div class="bg">
+            <div class="ob ${solarUnit==='auto'?'on':''}" data-t="solar_unit" data-v="auto">Auto</div>
+            <div class="ob ${solarUnit==='W'?'on':''}"    data-t="solar_unit" data-v="W">W</div>
+            <div class="ob ${solarUnit==='kW'?'on':''}"   data-t="solar_unit" data-v="kW">kW</div>
+          </div>
+        </div>
+      </div>`;
+    }
+    if(sec.id==='grid'){
+      const gridMode = this._config.grid_mode||'single';
+      const gridInv  = this._config.grid_invert||false;
+      const gridUnit = this._config.grid_unit||'auto';
+      const homeUnit = this._config.home_unit||'auto';
+      optionsHTML = `<div class="sec-opts">
+        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:8px;letter-spacing:.4px">🔌 GRID OPTIONS</div>
+        <div class="opt-row" style="margin-bottom:8px">
+          <label style="font-size:12px;font-weight:600">Sensor mode</label>
+          <div class="bg">
+            <div class="ob ${gridMode==='single'?'on':''}" data-t="grid_mode" data-v="single">1 sensor</div>
+            <div class="ob ${gridMode==='dual'?'on':''}"   data-t="grid_mode" data-v="dual">2 sensors</div>
+          </div>
+        </div>
+        ${gridMode==='single'?`<div class="toggle-row" style="margin-bottom:8px"><label class="tl">🔄 Invert direction (Deye/Growatt)</label><label class="tog"><input type="checkbox" id="gridInvTog" ${gridInv?'checked':''}/><span class="tog-sl"></span></label></div>`:''}
+        <div class="opt-row" style="margin-bottom:4px">
+          <label style="font-size:12px;font-weight:600">Grid power unit</label>
+          <div class="bg">
+            <div class="ob ${gridUnit==='auto'?'on':''}" data-t="grid_unit" data-v="auto">Auto</div>
+            <div class="ob ${gridUnit==='W'?'on':''}"    data-t="grid_unit" data-v="W">W</div>
+            <div class="ob ${gridUnit==='kW'?'on':''}"   data-t="grid_unit" data-v="kW">kW</div>
+          </div>
+        </div>
+        <div style="height:1px;background:var(--divider-color);margin:10px 0 8px"></div>
+        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:8px;letter-spacing:.4px">🏠 HOME OPTIONS</div>
+        <div class="opt-row" style="margin-bottom:4px">
+          <label style="font-size:12px;font-weight:600">Home power unit</label>
+          <div class="bg">
+            <div class="ob ${homeUnit==='auto'?'on':''}" data-t="home_unit" data-v="auto">Auto</div>
+            <div class="ob ${homeUnit==='W'?'on':''}"    data-t="home_unit" data-v="W">W</div>
+            <div class="ob ${homeUnit==='kW'?'on':''}"   data-t="home_unit" data-v="kW">kW</div>
+          </div>
+        </div>
+        <div style="height:1px;background:var(--divider-color);margin:10px 0 4px"></div>
+      </div>`;
+    }
+      const battMode = this._config.battery_mode||'single';
+      const battInv  = this._config.battery_invert||false;
+      const battUnit = this._config.battery_unit||'auto';
+      optionsHTML = `<div class="sec-opts">
+        <div class="opt-row" style="margin-bottom:8px">
+          <label style="font-size:12px;font-weight:600">Sensor mode</label>
+          <div class="bg">
+            <div class="ob ${battMode==='single'?'on':''}" data-t="battery_mode" data-v="single">1 sensor</div>
+            <div class="ob ${battMode==='dual'?'on':''}"   data-t="battery_mode" data-v="dual">2 sensors</div>
+          </div>
+        </div>
+        ${battMode==='single'?`<div class="toggle-row" style="margin-bottom:8px"><label class="tl">🔄 Invert direction (Deye/Growatt)</label><label class="tog"><input type="checkbox" id="battInvTog" ${battInv?'checked':''}/><span class="tog-sl"></span></label></div>`:''}
+        <div class="opt-row" style="margin-bottom:4px">
+          <label style="font-size:12px;font-weight:600">Power unit</label>
+          <div class="bg">
+            <div class="ob ${battUnit==='auto'?'on':''}" data-t="battery_unit" data-v="auto">Auto</div>
+            <div class="ob ${battUnit==='W'?'on':''}"    data-t="battery_unit" data-v="W">W</div>
+            <div class="ob ${battUnit==='kW'?'on':''}"   data-t="battery_unit" data-v="kW">kW</div>
+          </div>
+        </div>
+        <div style="height:1px;background:var(--divider-color);margin:10px 0 4px"></div>
+      </div>`;
+    }
+
+
+    // Filter fields theo mode: ẩn field không dùng
+    const filteredFields = sec.fields.filter(f=>{
+      if(sec.id==='battery'){
+        const m=this._config.battery_mode||'single';
+        if(m==='single' && (f.k==='battery_charge_entity'||f.k==='battery_discharge_entity')) return false;
+        if(m==='dual'   && f.k==='battery_flow_entity') return false;
+      }
+      if(sec.id==='grid'){
+        const m=this._config.grid_mode||'single';
+        if(m==='single' && (f.k==='grid_import_entity'||f.k==='grid_export_entity')) return false;
+        if(m==='dual'   && f.k==='grid_flow_entity') return false;
+      }
+      return true;
+    });
+
     return `
     <div class="acc-wrap">
       <div class="acc-head" id="head-${sec.id}">
@@ -373,7 +473,8 @@ class SolarWeatherCardEditor extends HTMLElement {
         <span class="acc-arrow" id="arrow-${sec.id}">${isOpen?'▾':'▸'}</span>
       </div>
       <div class="acc-body" id="body-${sec.id}" style="display:${isOpen?'block':'none'}">
-        ${sec.fields.map(f=>`
+        ${optionsHTML}
+        ${filteredFields.map(f=>`
           <div class="row">
             <label>${f.l}${f.r?' <span class="req">*</span>':''}</label>
             ${this._fieldHTML(f)}
@@ -403,6 +504,7 @@ class SolarWeatherCardEditor extends HTMLElement {
       .acc-head:hover{background:var(--table-row-background-color,rgba(0,0,0,.04))}
       .acc-arrow{font-size:14px;color:var(--secondary-text-color);transition:transform .2s}
       .acc-body{padding:12px 14px;border-top:1px solid var(--divider-color);background:var(--card-background-color,#fff)}
+      .sec-opts{background:var(--secondary-background-color);border-radius:8px;padding:10px 12px;margin-bottom:12px;border:1px solid var(--divider-color)}
       /* fields */
       .row{display:flex;flex-direction:column;margin-bottom:12px}
       .row:last-child{margin-bottom:0}
@@ -538,6 +640,26 @@ class SolarWeatherCardEditor extends HTMLElement {
       });
     });
 
+    // ── Option buttons (flow_style, battery_mode, grid_mode, battery_unit, grid_unit) ──
+    this.shadowRoot.querySelectorAll('.ob[data-t]').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        this._config={...this._config,[btn.dataset.t]:btn.dataset.v};
+        this._fire(); this._render();
+      });
+    });
+
+    // ── Battery invert toggle ──
+    const battInvTog=this.shadowRoot.getElementById('battInvTog');
+    if(battInvTog) battInvTog.addEventListener('change',e=>{
+      this._config={...this._config,battery_invert:e.target.checked}; this._fire(); this._render();
+    });
+
+    // ── Grid invert toggle ──
+    const gridInvTog=this.shadowRoot.getElementById('gridInvTog');
+    if(gridInvTog) gridInvTog.addEventListener('change',e=>{
+      this._config={...this._config,grid_invert:e.target.checked}; this._fire(); this._render();
+    });
+
     // ── Opacity ─────────────────────────────────────────────────
     const sl=this.shadowRoot.getElementById('opS'),ov=this.shadowRoot.getElementById('opV');
     sl.addEventListener('input',e=>ov.textContent=e.target.value+'%');
@@ -597,6 +719,9 @@ class SolarWeatherCard extends HTMLElement {
   static getStubConfig(){
     return {
       flow_style:'particle', language:'vi', background_opacity:45,
+      battery_mode:'single', battery_invert:false, battery_unit:'auto',
+      grid_mode:'single', grid_invert:false, grid_unit:'auto',
+      solar_unit:'auto', home_unit:'auto',
       show_weather_info:true, show_tomorrow:true, show_node_glow:true, currency:'đ', pricing_tiers:'',
       weather_entity:'', temperature_entity:'', humidity_entity:'',
       pressure_entity:'', uv_entity:'', rain_entity:'',
@@ -633,6 +758,131 @@ class SolarWeatherCard extends HTMLElement {
       return isNaN(v)?null:v;
     }
     return parseFloat(this._g(k,String(def)))||def;
+  }
+
+  // Đọc 1 entity đơn giản với unit conversion về W nội bộ
+  _readRawPower(entityKey, unitKey){
+    const cfg=this._config;
+    if(!cfg[entityKey]||!this._hass) return 0;
+    const s=this._hass.states[cfg[entityKey]];
+    if(!s||s.state==='unavailable'||s.state==='unknown') return 0;
+    const v=parseFloat(s.state); if(isNaN(v)) return 0;
+    // Lấy unit thực của sensor
+    const sensorUnit=(s.attributes&&s.attributes.unit_of_measurement||'').trim();
+    const unitCfg=cfg[unitKey]||'auto';
+    // Luôn convert về W để tính toán
+    if(unitCfg==='auto'){
+      if(sensorUnit==='kW'||sensorUnit==='kilowatt') return v*1000;
+      return v;
+    } else if(unitCfg==='W'){
+      if(sensorUnit==='kW'||sensorUnit==='kilowatt') return v*1000;
+      return v;
+    } else if(unitCfg==='kW'){
+      // Sensor là W nhưng user muốn hiển thị kW — vẫn trả W nội bộ
+      if(sensorUnit==='W'||sensorUnit==='watt'||sensorUnit==='') return v;
+      return v*1000; // sensor là kW
+    }
+    return v;
+  }
+
+  // Đọc power sensor với đầy đủ xử lý: dual/single, invert, unit(W/kW)
+  _readPower(type){
+    const cfg=this._config;
+    const _raw=(key)=>{
+      if(!cfg[key]||!this._hass) return null;
+      const s=this._hass.states[cfg[key]];
+      if(!s||s.state==='unavailable'||s.state==='unknown') return null;
+      const v=parseFloat(s.state); return isNaN(v)?null:v;
+    };
+    const _toW=(v,unitCfg,entityKey)=>{
+      if(v===null) return 0;
+      // Xác định unit thực tế của sensor
+      let sensorUnit='W';
+      if(entityKey&&cfg[entityKey]&&this._hass){
+        const s=this._hass.states[cfg[entityKey]];
+        if(s&&s.attributes&&s.attributes.unit_of_measurement){
+          sensorUnit=s.attributes.unit_of_measurement.trim();
+        }
+      }
+      // Auto: kW sensor → convert sang W để tính toán nội bộ
+      // Nếu unitCfg='kW' và sensor là W → chuyển W→kW (hiển thị kW)
+      // Nếu unitCfg='W' và sensor là kW → chuyển kW→W (hiển thị W)
+      // Nếu unitCfg='auto': dùng unit thực của sensor
+      if(unitCfg==='auto'||!unitCfg){
+        // Luôn convert về W để tính toán flow/logic
+        if(sensorUnit==='kW'||sensorUnit==='kilowatt') return v*1000;
+        return v;
+      } else if(unitCfg==='W'){
+        if(sensorUnit==='kW'||sensorUnit==='kilowatt') return v*1000;
+        return v;
+      } else if(unitCfg==='kW'){
+        if(sensorUnit==='W'||sensorUnit==='watt'||sensorUnit==='') return v/1000;
+        return v; // đã là kW, giữ nguyên nhưng * 1000 để tính logic W
+      }
+      return v;
+    };
+    const _toWFixed=(v,unitCfg,entityKey)=>{
+      // Như _toW nhưng luôn trả về W cho logic nội bộ
+      const w=_toW(v,unitCfg,entityKey);
+      if(unitCfg==='kW') return w*1000; // kW → W cho logic
+      return w;
+    };
+
+    if(type==='battery'){
+      const mode=cfg.battery_mode||'single';
+      const inv=cfg.battery_invert||false;
+      const unit=cfg.battery_unit||'auto';
+      if(mode==='dual'){
+        const ch=_raw('battery_charge_entity');
+        const di=_raw('battery_discharge_entity');
+        const chW=_toWFixed(ch,unit,'battery_charge_entity');
+        const diW=_toWFixed(di,unit,'battery_discharge_entity');
+        // charge=dương, discharge=âm
+        if(chW>10) return chW;
+        if(diW>10) return -diW;
+        return 0;
+      } else {
+        const v=_raw('battery_flow_entity');
+        let w=_toWFixed(v,unit,'battery_flow_entity');
+        if(inv) w=-w;
+        return w;
+      }
+    }
+
+    if(type==='grid'){
+      const mode=cfg.grid_mode||'single';
+      const inv=cfg.grid_invert||false;
+      const unit=cfg.grid_unit||'auto';
+      if(mode==='dual'){
+        const im=_raw('grid_import_entity');
+        const ex=_raw('grid_export_entity');
+        const imW=_toWFixed(im,unit,'grid_import_entity');
+        const exW=_toWFixed(ex,unit,'grid_export_entity');
+        // export=dương, import=âm (theo YAML gốc: +export/-import)
+        if(exW>10) return exW;
+        if(imW>10) return -imW;
+        return 0;
+      } else {
+        const v=_raw('grid_flow_entity');
+        let w=_toWFixed(v,unit,'grid_flow_entity');
+        if(inv) w=-w;
+        return w;
+      }
+    }
+    return 0;
+  }
+
+  // Format giá trị W/kW để hiển thị theo unit config
+  _fmtPower(watt, type){
+    const cfg=this._config;
+    const unitMap={battery:'battery_unit',grid:'grid_unit',solar:'solar_unit',home:'home_unit'};
+    const unitKey=unitMap[type]||'battery_unit';
+    const unit=cfg[unitKey]||'auto';
+    if(unit==='kW') return (watt/1000).toFixed(2)+' kW';
+    if(unit==='W')  return Math.round(watt)+'W';
+    // auto: kW nếu >=1000W
+    if(Math.abs(watt)>=1000) return (watt/1000).toFixed(1)+' kW';
+    return Math.round(watt)+'W';
   }
 
   _getTiers(){
@@ -878,15 +1128,17 @@ class SolarWeatherCard extends HTMLElement {
     }
     const tmrHTML = makeWeatherIcon(tmrWstate);
 
-    const pv1W=this._gf('solar_pv1_entity',0),pv2W=this._gf('solar_pv2_entity',0);
+    // Solar — hỗ trợ unit W/kW
+    const pv1W=this._readRawPower('solar_pv1_entity','solar_unit');
+    const pv2W=this._readRawPower('solar_pv2_entity','solar_unit');
     const solarW=pv1W+pv2W,hasSolar=solarW>10;
     const pv1V=this._gf('solar_pv1_voltage_entity',0),pv2V=this._gf('solar_pv2_voltage_entity',0);
     const pvDC=((pv1V+pv2V)/2).toFixed(0);
 
     const battSoc=this._gf('battery_soc_entity',0);
-    const battFlW=this._gf('battery_flow_entity',0);
+    const battFlW=this._readPower('battery');
     const isCharge=battFlW>10,isDisch=battFlW<-10;
-    const battW=Math.abs(battFlW).toFixed(0);
+    const battW=this._fmtPower(Math.abs(battFlW),'battery');
     const battDir=isCharge?T.charging:(isDisch?T.discharging:T.standby);
     const bVolt=parseFloat(this._gf('battery_voltage_entity',48));
     const bPct=Math.round(battSoc);
@@ -903,13 +1155,14 @@ class SolarWeatherCard extends HTMLElement {
       else if(isDisch&&Math.abs(battFlW)>0){ const e=Math.round(battSoc/100*battCapWh/Math.abs(battFlW)*60); if(e>0){ battETA=e>=72000?T.slowDisch:T.etaLeft+(e>=60?Math.floor(e/60)+'h ':'')+e%60+'m'; } }
     }
 
-    const gridFlW=this._gf('grid_flow_entity',0);
+    const gridFlW=this._readPower('grid');
     const hasGrid=Math.abs(gridFlW)>10;
-    const gridW=Math.abs(gridFlW).toFixed(0);
+    const gridW=this._fmtPower(Math.abs(gridFlW),'grid');
     const gridDir=gridFlW>10?T.exportGrid:T.importGrid;
     const gridV=this._gf('grid_voltage_entity',220).toFixed(0);
-    const homeFlW=this._gf('home_consumption_entity',0);
-    const homeW=homeFlW.toFixed(0),hasHome=homeFlW>10;
+    // Home — hỗ trợ unit W/kW
+    const homeFlW=this._readRawPower('home_consumption_entity','home_unit');
+    const homeW=this._fmtPower(homeFlW,'home'),hasHome=homeFlW>10;
     const invSwitchState=this._g('inverter_switch_entity','off');
     const invOff=invSwitchState==='on';
     const gridDirectW=invOff?this._gf('grid_direct_entity',0):0;
@@ -1149,10 +1402,10 @@ class SolarWeatherCard extends HTMLElement {
 
     // Node cards
     const isInvActive=!invOff&&(hasSolar||hasHome||hasGrid||isCharge||isDisch);
-    const foBAT=this._svgCard(BAT_X,BAT_Y,BAT_W,BAT_H,'rgba(40,230,160,1)','rgba(30,190,120,.5)','rgba(0,14,8,.97)',batIcoFn,`${battW}W`,battDir,`${bVolt.toFixed(0)}V DC`,isCharge||isDisch,showGlow);
+    const foBAT=this._svgCard(BAT_X,BAT_Y,BAT_W,BAT_H,'rgba(40,230,160,1)','rgba(30,190,120,.5)','rgba(0,14,8,.97)',batIcoFn,battW,battDir,`${bVolt.toFixed(0)}V DC`,isCharge||isDisch,showGlow);
     const foINV=this._svgCard(INV_X,INV_Y,INV_W,INV_H,'rgba(185,145,255,1)','rgba(145,90,255,.48)','rgba(6,2,18,.97)',invIcoFn,`${gridV}V`,'AC Output',`${bVolt.toFixed(0)}V BAT · ${pvDC}V PV`,isInvActive,showGlow);
-    const foGRD=this._svgCard(GRD_X,GRD_Y,GRD_W,GRD_H,'rgba(0,215,255,1)','rgba(0,165,240,.48)','rgba(0,10,20,.97)',grdIcoFn,`${gridW}W`,gridDir,`${gridV}V AC`,hasGrid,showGlow);
-    const foHOM=this._svgCard(HOM_X,HOM_Y,HOM_W,HOM_H,'rgba(255,178,40,1)','rgba(220,132,14,.48)','rgba(12,6,0,.97)',homIcoFn,`${homeW}W`,T.homeConsume,'Home',hasHome,showGlow);
+    const foGRD=this._svgCard(GRD_X,GRD_Y,GRD_W,GRD_H,'rgba(0,215,255,1)','rgba(0,165,240,.48)','rgba(0,10,20,.97)',grdIcoFn,gridW,gridDir,`${gridV}V AC`,hasGrid,showGlow);
+    const foHOM=this._svgCard(HOM_X,HOM_Y,HOM_W,HOM_H,'rgba(255,178,40,1)','rgba(220,132,14,.48)','rgba(12,6,0,.97)',homIcoFn,homeW,T.homeConsume,'Home',hasHome,showGlow);
 
     // Sky aura
     let r1,g1,b1,r2,g2,b2;
@@ -1272,7 +1525,7 @@ class SolarWeatherCard extends HTMLElement {
         <path d="M332,65 Q173,145 14,65" fill="none" stroke="url(#ng)" stroke-width="1.5" stroke-dasharray="4,5" opacity=".35"/>
         ${sunSVG}
         <rect x="${lbx}" y="${lby}" width="${lbw}" height="26" rx="13" fill="rgba(255,200,50,.22)" stroke="rgba(255,210,60,.45)" stroke-width="1.2"/>
-        <text x="${lbx+lbw/2}" y="${lby+17}" text-anchor="middle" fill="rgba(255,235,110,.98)" font-size="14" font-weight="800" font-family="Inter">${Math.round(solarW)}W ⚡</text>
+        <text x="${lbx+lbw/2}" y="${lby+17}" text-anchor="middle" fill="rgba(255,235,110,.98)" font-size="14" font-weight="800" font-family="Inter">${this._fmtPower(solarW,'solar')} ⚡</text>
         ${moonSVG}
         ${FL}
         ${foBAT}${foINV}${foGRD}${foHOM}
