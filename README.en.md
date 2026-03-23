@@ -64,7 +64,7 @@ A custom Home Assistant card that displays your complete solar energy system —
 
 > If the button doesn't work, add manually:
 > **HACS → Frontend → ⋮ → Custom repositories**
-> → URL: `https://github.com/doanlong1412/solar-weather-card` → Type: **Dashboard** → Add
+> → URL: `https://github.com/doanlong1412/solar-weather-card` → Category: **Frontend** → Add
 
 **Step 2:** Search for **Solar Weather Card** → **Install**
 
