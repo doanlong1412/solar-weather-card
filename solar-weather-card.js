@@ -39,7 +39,6 @@
  *   - Tùy chọn bật/tắt dự báo ngày mai (show_tomorrow)
  *   - Tùy chọn thang giá tùy chỉnh + đơn vị tiền tệ
  *     (nếu không nhập → mặc định EVN VNĐ)
- *
  * Solar Weather Card v1.5.2
  * Changelog v1.5.1
  * Solar Weather Card v1.5.1
@@ -493,6 +492,9 @@ class SolarWeatherCardEditor extends HTMLElement {
     const customTiers = this._config.pricing_tiers||'';
     const isDispOpen  = this._open.display;
     const isPricingOpen = this._open.pricing;
+    const isLayoutOpen  = this._open.layout;
+    const batX = this._config.node_bat_x??-40;
+    const grdX = this._config.node_grd_x??295;
 
     this.shadowRoot.innerHTML=`<style>
       :host{display:block;padding:4px 0}
@@ -616,11 +618,38 @@ class SolarWeatherCardEditor extends HTMLElement {
           <div class="hint">Format: <code>limit_kWh:rate</code> comma-separated. Leave empty = Vietnam EVN default.</div>
         </div>
       </div>
+    </div>
+
+    <!-- LAYOUT accordion -->
+    <div class="acc-wrap">
+      <div class="acc-head" id="head-layout">
+        <span>📐 Node Layout</span>
+        <span class="acc-arrow" id="arrow-layout">${isLayoutOpen?'▾':'▸'}</span>
+      </div>
+      <div class="acc-body" id="body-layout" style="display:${isLayoutOpen?'block':'none'}">
+        <div class="hint" style="margin-bottom:10px">
+          Adjust if Battery or Grid node is cut off on small screens (iPhone, Galaxy S10...). SVG viewBox width = 346px.
+        </div>
+        <div class="sl-row">
+          <label>🔋 Battery node X position</label>
+          <input type="range" id="batXSl" min="-50" max="80" value="${batX}" step="1"/>
+          <span class="slv" id="batXV">${batX}</span>
+        </div>
+        <div class="sl-row" style="margin-top:6px">
+          <label>🔌 Grid node X position</label>
+          <input type="range" id="grdXSl" min="214" max="345" value="${grdX}" step="1"/>
+          <span class="slv" id="grdXV">${grdX}</span>
+        </div>
+        <div class="hint" style="margin-top:8px">
+          Default: Battery = <strong>-40</strong> (partially hidden left), Grid = <strong>295</strong> (partially hidden right).<br/>
+          For small screens try: Battery = <strong>4</strong>, Grid = <strong>250</strong>.
+        </div>
+      </div>
     </div>`;
 
     // ── Accordion toggles ───────────────────────────────────────
     // ── Add fr to isParticle/wave/line check too
-    ['display','weather','solar','battery','grid','stats','pricing'].forEach(id=>{
+    ['display','weather','solar','battery','grid','stats','pricing','layout'].forEach(id=>{
       const h=this.shadowRoot.getElementById('head-'+id);
       if(h) h.addEventListener('click',()=>this._toggle(id));
     });
@@ -663,6 +692,28 @@ class SolarWeatherCardEditor extends HTMLElement {
     const sl=this.shadowRoot.getElementById('opS'),ov=this.shadowRoot.getElementById('opV');
     sl.addEventListener('input',e=>ov.textContent=e.target.value+'%');
     sl.addEventListener('change',e=>{ this._config={...this._config,background_opacity:parseInt(e.target.value)}; this._fire(); });
+
+    // ── Node position sliders ──────────────────────────────
+    const batXSl=this.shadowRoot.getElementById('batXSl');
+    if(batXSl){
+      batXSl.addEventListener('input',e=>{
+        this.shadowRoot.getElementById('batXV').textContent=e.target.value;
+      });
+      batXSl.addEventListener('change',e=>{
+        this._config={...this._config,node_bat_x:parseInt(e.target.value)};
+        this._fire();
+      });
+    }
+    const grdXSl=this.shadowRoot.getElementById('grdXSl');
+    if(grdXSl){
+      grdXSl.addEventListener('input',e=>{
+        this.shadowRoot.getElementById('grdXV').textContent=e.target.value;
+      });
+      grdXSl.addEventListener('change',e=>{
+        this._config={...this._config,node_grd_x:parseInt(e.target.value)};
+        this._fire();
+      });
+    }
 
     // ── Toggles ─────────────────────────────────────────────────
     this.shadowRoot.getElementById('infoTog').addEventListener('change',e=>{
@@ -1206,8 +1257,8 @@ class SolarWeatherCard extends HTMLElement {
     const my2=(1-tMoon)*(1-tMoon)*65+2*(1-tMoon)*tMoon*145+tMoon*tMoon*65;
 
     // Layout
-    const BAT_X=-40,BAT_Y=100,BAT_W=92,BAT_H=126;
-    const GRD_X=295,GRD_Y=100,GRD_W=92,GRD_H=126;
+    const BAT_X=cfg.node_bat_x??-40,BAT_Y=100,BAT_W=92,BAT_H=126;
+    const GRD_X=cfg.node_grd_x??295,GRD_Y=100,GRD_W=92,GRD_H=126;
     const INV_X=120,INV_Y=220,INV_W=106,INV_H=130;
     const HOM_X=120,HOM_Y=400,HOM_W=106,HOM_H=124;
     const BAT_CX=BAT_X+BAT_W/2,BAT_CY=BAT_Y+BAT_H/2,BAT_R=BAT_X+BAT_W,BAT_BOT=BAT_Y+BAT_H;
