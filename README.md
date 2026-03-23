@@ -60,11 +60,11 @@ Card tùy chỉnh cho Home Assistant — hiển thị toàn bộ hệ thống n�
 
 **Bước 1:** Thêm Custom Repository vào HACS:
 
-[![Open HACS Repository](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=doanlong1412&repository=solar-weather-card&category=frontend)
+[![Open HACS Repository](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=doanlong1412&repository=solar-weather-card&category=dashboard)
 
 > Nếu nút không hoạt động, thêm thủ công:
 > **HACS → Frontend → ⋮ → Custom repositories**
-> → URL: `https://github.com/doanlong1412/solar-weather-card` → Type: **Dashboard** → Add
+> → URL: `https://github.com/doanlong1412/solar-weather-card` → Category: **Frontend** → Add
 
 **Bước 2:** Tìm **Solar Weather Card** → **Install**
 
