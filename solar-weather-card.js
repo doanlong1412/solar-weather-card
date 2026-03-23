@@ -40,7 +40,8 @@
  *   - Tùy chọn thang giá tùy chỉnh + đơn vị tiền tệ
  *     (nếu không nhập → mặc định EVN VNĐ)
  *
- *
+ * Solar Weather Card v1.5.2
+ * Changelog v1.5.1
  * Solar Weather Card v1.5.1
  * Changelog v1.5.0:
  *   - Flow style thứ 3: "wave" — sóng sin + dust particles + bright dots
@@ -48,9 +49,6 @@
  *   - Xóa label công suất cạnh flow (chỉ hiển thị trong node card)
  *   - ha-entity-picker trong Editor — dropdown chọn entity như HA native
  *   - Giữ nguyên tất cả tính năng v1.4.1
- *
- * Solar Weather Card v1.5.2
- * Changelog v1.5.1
  */
 
 // ═══════════════════════════════════════════════════════════════
@@ -426,6 +424,7 @@ class SolarWeatherCardEditor extends HTMLElement {
         <div style="height:1px;background:var(--divider-color);margin:10px 0 4px"></div>
       </div>`;
     }
+    if(sec.id==='battery'){
       const battMode = this._config.battery_mode||'single';
       const battInv  = this._config.battery_invert||false;
       const battUnit = this._config.battery_unit||'auto';
