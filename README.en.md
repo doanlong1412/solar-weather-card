@@ -1,7 +1,7 @@
 # ☀️ Solar Weather Card
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-1.4.1-blue)
+![version](https://img.shields.io/badge/version-1.5.1-blue)
 ![HA](https://img.shields.io/badge/Home%20Assistant-2023.1+-green)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
 
@@ -19,45 +19,38 @@ A custom Home Assistant card that displays your complete solar energy system —
 
 ---
 
-## ✨ Features (v1.4.1)
+## ✨ Features (v1.5.1)
 
 ### 🎨 Display & Interface
-- 🕐 **Live clock & date**, auto-updates every 30 seconds
+- 🕐 **Live clock & date**, auto-updates every 30 seconds — weather icon always visible even when info panel is hidden
 - 🌤️ **Animated CSS weather icons** — rotating sun, falling rain, lightning flash, drifting fog, blowing wind
-- 🌍 **Today's weather + tomorrow's forecast** (toggleable)
+- 🌍 **Today's weather + tomorrow's forecast** (each toggleable independently)
 - 🌅 **Sun / moon arc** moves in real time based on sunrise/sunset
 - ☀️ **Sun heartbeat** — pulse speed and glow scale with solar output
-- 🌈 **Dynamic sky aura** — colour shifts from dawn blues through midday yellows to dusk oranges
+- 🌈 **Dynamic sky aura** — colour shifts from dawn through midday to dusk
 
-### ⚡ Energy Flow
-- **Particle Bubble** — bubbles travel along Bézier curves with multi-layer glow and white highlight sparkles
-- **Animated Line** — dashed stroke animation along the same paths
-- Speed and density auto-scale with power level; **each flow type has its own optimised scale** (solar / battery / grid / home)
+### ⚡ Energy Flow (3 styles)
+- **✦ Particle** — bubbles travel along Bézier curves with glow and highlight sparkles
+- **〰️ Wave** — sine wave + dust particles + bright dots (new in v1.5)
+- **── Line** — animated dashed stroke
 
-### 🏗️ Node Cards
-- Heartbeat border pulse when energy is flowing
-- **New grid icon**: detailed lattice tower + separate transformer + sagging wires + ceramic insulators
-- **Inverter icon**: spinning fan + animated sine wave + blinking LEDs
-- **House icon**: 3D tiled roof + glowing windows + antenna
-- **Battery icon**: fill bar with colour coding + lightning bolt while charging
+### 🏗️ Node Cards (Battery, Inverter, Grid, Home)
+- Heartbeat border pulse when energy flows (toggleable)
+- Detailed 3D icons: battery, inverter with spinning fan, lattice tower + transformer, 3D house
 
 ### 🔋 Battery
 - Colour-coded bar: 🟢 green (>20%) → 🟡 amber (10–20%) → 🔴 red (≤10%)
-- **Charge / discharge ETA** — supports Ah sensors (LuxPower) multiplied by live voltage to derive Wh
+- **Charge / discharge ETA** — supports Ah sensors (LuxPower) × live voltage
 
 ### 📊 Stats & System
 - 5-cell stats bar: Solar / From Grid / Consume / Saving / System
-- **Custom electricity pricing** — enter your own tiers or use the Vietnam EVN default
-- **Custom currency symbol** — đ / € / $ / £ / ฿ ...
+- **Custom electricity pricing** + **custom currency symbol**
 - Scrolling ticker with weather commentary and battery status
 
-### 🎛️ Customisation
-- **Flow style**: Particle bubble or Animated line
-- **Language**: 🇻🇳 Tiếng Việt / 🇬🇧 English / 🇩🇪 Deutsch / 🇮🇹 Italiano
-- **Tomorrow forecast**: show / hide toggle
-- **Background opacity**: slider 0–100%
-- **Electricity pricing + currency**: fully customisable
-- Visual Config Editor — no YAML editing needed
+### 🎛️ Config Editor
+- **Accordion sections** — entities grouped by category, expand/collapse each section
+- **ha-entity-picker** — native HA dropdown, auto-filtered by entity domain
+- **5 languages**: 🇻🇳 Tiếng Việt / 🇬🇧 English / 🇩🇪 Deutsch / 🇮🇹 Italiano / 🇫🇷 Français
 
 ---
 
@@ -65,13 +58,13 @@ A custom Home Assistant card that displays your complete solar energy system —
 
 ### Option 1 — HACS (recommended)
 
-**Step 1:** Add this repository to HACS:
+**Step 1:** Add Custom Repository to HACS:
 
 [![Open HACS Repository](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=doanlong1412&repository=solar-weather-card&category=frontend)
 
 > If the button doesn't work, add manually:
 > **HACS → Frontend → ⋮ → Custom repositories**
-> → URL: `https://github.com/doanlong1412/solar-weather-card` → Category: **Frontend** → Add
+> → URL: `https://github.com/doanlong1412/solar-weather-card` → Type: **Dashboard** → Add
 
 **Step 2:** Search for **Solar Weather Card** → **Install**
 
@@ -92,15 +85,33 @@ A custom Home Assistant card that displays your complete solar energy system —
 
 ---
 
-## ⚙️ Configuration
+## ⚙️ Card Configuration
 
-### Add the card to your dashboard
+### Step 1 — Add the card to your dashboard
 
 ```yaml
 type: custom:solar-weather-card
 ```
 
-After adding the card, click **✏️ Edit** — the configuration form will appear so you can enter entity IDs. No manual YAML editing required.
+After adding the card, click **✏️ Edit** to open the Config Editor.
+
+### Step 2 — Config Editor overview
+
+![Config Editor](assets/editor-preview.png)
+
+The Config Editor is divided into **accordion sections** — click any header to expand/collapse:
+
+| Section | Contents |
+|---------|---------|
+| 🎨 **Display Options** | Flow style, language, opacity, display toggles |
+| ☁️ **Weather & Environment** | Weather entity, temperature, humidity, UV, pressure, rain forecast |
+| ⚡ **Solar** | Array power and voltage sensors |
+| 🔋 **Battery** | SOC, charge/discharge flow, voltage, capacity |
+| 🔌 **Grid & Home** | Grid flow, AC voltage, home consumption |
+| ⚙️ **System & Stats** | Inverter status, temperatures |
+| 💰 **Pricing & Currency** | Electricity pricing tiers, currency symbol |
+
+> 💡 **Badge numbers** (e.g. `6/6`) on each section show how many entities are configured.
 
 ---
 
@@ -108,10 +119,12 @@ After adding the card, click **✏️ Edit** — the configuration form will app
 
 | Config key | Values | Default | Description |
 |---|---|---|---|
-| `flow_style` | `particle` / `line` | `particle` | Energy flow animation style |
-| `language` | `vi` / `en` / `de` / `it` | `vi` | Display language |
+| `flow_style` | `particle` / `wave` / `line` | `particle` | Energy flow animation style |
+| `language` | `vi` / `en` / `de` / `it` / `fr` | `vi` | Display language |
 | `background_opacity` | `0` – `100` | `45` | Card background opacity (%) |
-| `show_tomorrow` | `true` / `false` | `true` | Show / hide tomorrow's forecast |
+| `show_weather_info` | `true` / `false` | `true` | Show/hide full weather info panel |
+| `show_tomorrow` | `true` / `false` | `true` | Show/hide tomorrow's forecast |
+| `show_node_glow` | `true` / `false` | `true` | Enable/disable node glow effect |
 | `currency` | any symbol | `đ` | Currency symbol for savings display |
 | `pricing_tiers` | see below | Vietnam EVN | Custom electricity pricing tiers |
 
@@ -121,21 +134,13 @@ After adding the card, click **✏️ Edit** — the configuration form will app
 
 Leave `pricing_tiers` empty to use the built-in **Vietnam EVN tiered pricing**.
 
-To enter your own rates, use the format: `limit_kWh:rate` separated by commas.
-Use `∞` or `inf` for the final (unlimited) tier.
+Format: `limit_kWh:rate` comma-separated. Use `∞` or `inf` for the final tier.
 
-**Example — German electricity (€/kWh):**
 ```
+# Example — German electricity (€/kWh):
 50:0.25,100:0.28,∞:0.32
-```
 
-**Example — Italian electricity (€/kWh):**
-```
-100:0.18,300:0.24,∞:0.30
-```
-
-**Example — flat rate (e.g. USD $0.15/kWh):**
-```
+# Example — flat rate ($/kWh):
 ∞:0.15
 ```
 
@@ -143,58 +148,58 @@ Use `∞` or `inf` for the final (unlimited) tier.
 
 ### Available entities
 
-#### Weather & Environment
+#### ☁️ Weather & Environment
 
-| Field | Description | Required |
-|-------|-------------|:---:|
-| 🌤️ Weather entity | `weather.xxx` | ✅ |
-| 🌡️ Outdoor temperature | Sensor in °C | ✅ |
-| 💧 Outdoor humidity | Sensor in % | ✅ |
-| 🌬️ Atmospheric pressure | Sensor in hPa | |
-| ☀️ UV index | UV index sensor | |
-| 🌧️ Rain forecast | Text sensor | |
+| Config key | Description | Required |
+|---|---|:---:|
+| `weather_entity` | `weather.xxx` | ✅ |
+| `temperature_entity` | Outdoor temperature sensor (°C) | ✅ |
+| `humidity_entity` | Outdoor humidity sensor (%) | ✅ |
+| `pressure_entity` | Atmospheric pressure sensor (hPa) | |
+| `uv_entity` | UV index sensor | |
+| `rain_entity` | Rain forecast text sensor | |
 
-#### Solar
+#### ⚡ Solar
 
-| Field | Description | Required |
-|-------|-------------|:---:|
-| ⚡ Solar Array 1 (W) | Array 1 output power | ✅ |
-| ⚡ Solar Array 2 (W) | Array 2 output power | |
-| ⚡ Solar Array 1 Voltage (V) | Array 1 DC voltage | |
-| ⚡ Solar Array 2 Voltage (V) | Array 2 DC voltage | |
+| Config key | Description | Required |
+|---|---|:---:|
+| `solar_pv1_entity` | Array 1 output power (W) | ✅ |
+| `solar_pv2_entity` | Array 2 output power (W) | |
+| `solar_pv1_voltage_entity` | Array 1 DC voltage (V) | |
+| `solar_pv2_voltage_entity` | Array 2 DC voltage (V) | |
+| `solar_today_entity` | Solar generation today (kWh) | |
 
-#### Battery
+#### 🔋 Battery
 
-| Field | Description | Required |
-|-------|-------------|:---:|
-| 🔋 Battery SOC (%) | State of charge | ✅ |
-| 🔋 Battery flow (W) | Positive = charging, negative = discharging | ✅ |
-| 🔋 Battery voltage (V DC) | Live DC voltage | |
-| 🔋 Capacity sensor (Ah) | LuxPower returns Ah — card multiplies by voltage to get Wh | |
-| 🔋 Capacity manual (Wh) | Enter manually if no sensor — e.g. `26880` | |
+| Config key | Description | Required |
+|---|---|:---:|
+| `battery_soc_entity` | State of charge (%) | ✅ |
+| `battery_flow_entity` | Charge/discharge flow (W, + charge / − discharge) | ✅ |
+| `battery_voltage_entity` | DC voltage (V) | |
+| `battery_capacity_entity` | Capacity sensor (Ah) — LuxPower returns Ah | |
+| `battery_capacity_wh` | Manual capacity (Wh) — e.g. `26880` | |
+| `battery_temp_entity` | BMS temperature (°C) | |
 
 > 💡 **ETA priority:** Manual Wh → Sensor Ah × Voltage → Default 560 Ah × 48 V
 
-#### Grid & Home
+#### 🔌 Grid & Home
 
-| Field | Description | Required |
-|-------|-------------|:---:|
-| 🔌 Grid flow (W) | Positive = export, negative = import | ✅ |
-| 🔌 Grid voltage (V AC) | AC voltage | |
-| 🔌 Grid import today (kWh) | Grid energy consumed today | |
-| 🏠 Home consumption (W) | Total household load | ✅ |
+| Config key | Description | Required |
+|---|---|:---:|
+| `grid_flow_entity` | Grid flow (W, + export / − import) | ✅ |
+| `home_consumption_entity` | Total household load (W) | ✅ |
+| `grid_voltage_entity` | AC voltage (V) | |
+| `grid_today_entity` | Grid energy imported today (kWh) | |
+| `consumption_today_entity` | Total consumption today (kWh) | |
+| `inverter_switch_entity` | Inverter switch entity (grid-direct mode) | |
+| `grid_direct_entity` | Grid-direct power when inverter is off (W) | |
 
-#### Stats & System
+#### ⚙️ System & Stats
 
-| Field | Description | Required |
-|-------|-------------|:---:|
-| 📊 Solar today (kWh) | Solar generation today | |
-| 📊 Consumption today (kWh) | Total consumption today | |
-| ⚙️ Inverter status | State: Normal / online / OFF | |
-| 🔘 Inverter switch | Switch entity for grid-direct mode detection | |
-| 🔌 Grid-direct power (W) | Power drawn directly from grid when inverter is off | |
-| 🌡️ Inverter temperature (°C) | Inverter internal temp | |
-| 🌡️ BMS temperature (°C) | Battery BMS temperature | |
+| Config key | Description | Required |
+|---|---|:---:|
+| `inverter_status_entity` | Status: Normal / online / OFF | |
+| `inverter_temp_entity` | Inverter temperature (°C) | |
 
 ---
 
@@ -202,16 +207,17 @@ Use `∞` or `inf` for the final (unlimited) tier.
 
 ```yaml
 type: custom:solar-weather-card
-flow_style: particle
+flow_style: wave
 language: en
 background_opacity: 45
+show_weather_info: true
 show_tomorrow: true
+show_node_glow: true
 currency: đ
-# pricing_tiers: ""  # leave empty = use Vietnam EVN default
 
 weather_entity: weather.forecast_home
-temperature_entity: sensor.outdoor_temperature_aht20
-humidity_entity: sensor.outdoor_humidity_aht20
+temperature_entity: sensor.outdoor_temperature
+humidity_entity: sensor.outdoor_humidity
 pressure_entity: sensor.outdoor_pressure
 uv_entity: sensor.uv_index
 rain_entity: sensor.rain_forecast
@@ -224,7 +230,7 @@ solar_pv2_voltage_entity: sensor.lux_solar_voltage_array_2_live
 battery_soc_entity: sensor.lux_battery
 battery_flow_entity: sensor.lux_battery_flow_live
 battery_voltage_entity: sensor.lux_battery_voltage_live
-battery_capacity_entity: sensor.lux_battery_capacity  # LuxPower returns Ah
+battery_capacity_entity: sensor.lux_battery_capacity
 
 grid_flow_entity: sensor.lux_grid_flow_live
 grid_voltage_entity: sensor.lux_grid_voltage_live
@@ -254,8 +260,6 @@ battery_temp_entity: sensor.bms_temperature
 | 5 | 301 – 400 kWh | 3,350 ₫/kWh |
 | 6 | 400+ kWh | 3,460 ₫/kWh |
 
-The saving figure is the estimated value of today's solar generation had it been purchased from the grid at tiered rates.
-
 ---
 
 ## 🖥️ Compatibility
@@ -272,41 +276,35 @@ The saving figure is the estimated value of today's solar generation had it been
 
 ## 📋 Changelog
 
+### v1.5.1
+- 🌤️ Weather icon always visible alongside clock even when `show_weather_info` is off
+- 🌡️ Fixed outdoor temperature/humidity reading from sensor entities
+- 📅 Tomorrow forecast now prioritises `sensor.tomorrow_raw_hourly` (Tomorrow.io), falls back to `wfc[1]`
+- 🌡️ Fixed today's forecast hi/lo reading from `wfc[0]`
+
+### v1.5.0
+- 〰️ New flow style: **Wave** — sine wave + dust particles + bright dots
+- ✨ Toggle to enable/disable node glow effect (`show_node_glow`)
+- 🏷️ Removed power labels alongside flow paths
+- 🔽 **ha-entity-picker** — native HA entity dropdown, filtered by domain
+- 📁 **Accordion sections** in Config Editor
+- 🇫🇷 Added Français — 5 languages total
+- 🏳️ Real country flag images in language selector
+
 ### v1.4.1
-- 🗼 New grid icon: detailed lattice tower + separate transformer + sagging wires + ceramic insulators
-- ⚡ Type-based flowLevel — separate optimised scale for solar / battery / grid / home flows
-- 🌐 Added 🇩🇪 Deutsch and 🇮🇹 Italiano — language selector is now a dropdown
-- 🌤️ Toggle to show/hide tomorrow's forecast (`show_tomorrow`)
-- 💰 Custom electricity pricing tiers (`pricing_tiers`) + custom currency symbol (`currency`)
-- 🔘 Support for inverter switch entity + grid-direct flow path when inverter is off
+- 🗼 New grid icon: lattice tower + separate transformer
+- ⚡ Type-based flowLevel for solar/battery/grid/home
+- 💰 Custom pricing tiers + currency symbol
+- 🌤️ Toggle for tomorrow forecast
 
 ### v1.4.0
 - ✨ Completely new node cards: heartbeat border, hex grid, detailed 3D icons
-- ☀️ Sun heartbeat animation scales with solar power output
-- 🌈 Dynamic sky aura changes colour throughout the day
-- ✦ Improved particle system: white highlight layer + separate glow layer
-- 📜 Scrolling ticker with weather commentary and battery status
-- 📊 5-cell stats bar: Solar / From Grid / Consume / Saving / System
-- 🔋 Battery bar colour-codes by charge level
-- 🌐 Language toggle: VI / EN
-- 🪟 Background opacity slider
+- ☀️ Sun heartbeat scales with solar output
+- 🌈 Dynamic sky aura throughout the day
+- 📊 5-cell stats bar + scrolling ticker
 
-### v1.3.1
-- 🐛 Fixed ETA calculation: LuxPower returns Ah — multiply by live voltage to get Wh
-- ✏️ Added manual Wh capacity input for systems without a capacity sensor
-
-### v1.3.0
-- ✦ Added Particle Bubble flow mode
-- ⚡ Added PV voltage readout in inverter node
-
-### v1.2.0
-- 🌤️ Animated CSS weather icons
-
-### v1.1.0
-- 🎛️ Visual Config Editor
-
-### v1.0.0
-- 🚀 Initial release
+### v1.0.0 – v1.3.x
+- Foundation: standalone card, Visual Config Editor, particle flow, animated weather icons
 
 ---
 
@@ -319,4 +317,4 @@ If you find this useful, please ⭐ **star the repo**!
 
 ## 🙏 Credits
 
-Designed and developed by **[@doanlong1412](https://github.com/doanlong1412)**.
+Designed and developed by **[@doanlong1412](https://github.com/doanlong1412)** from 🇻🇳 Vietnam.
