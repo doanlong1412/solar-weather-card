@@ -60,7 +60,7 @@ A custom Home Assistant card that displays your complete solar energy system —
 
 **Step 1:** Add Custom Repository to HACS:
 
-[![Open HACS Repository](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=doanlong1412&repository=solar-weather-card&category=dashboard)
+[![Open HACS Repository](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=doanlong1412&repository=solar-weather-card&category=Dashboard)
 
 > If the button doesn't work, add manually:
 > **HACS → Frontend → ⋮ → Custom repositories**
