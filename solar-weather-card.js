@@ -48,6 +48,16 @@
  *   - Xóa label công suất cạnh flow (chỉ hiển thị trong node card)
  *   - ha-entity-picker trong Editor — dropdown chọn entity như HA native
  *   - Giữ nguyên tất cả tính năng v1.4.1
+ *
+ * v1.6.0
+ *Solar Forecast Chart** — actual hourly line + Solcast/formula forecast curve
+ *Solcast integration** — reads detailed hourly forecast from [ha-solcast-solar](https://github.com/BJReplay/ha-solcast-solar) by **@BJReplay**
+ *Formula sensor fallback** — forecast based on sun arc + cloud coverage when Solcast is unavailable
+ *Hourly recording automation** — logs real solar output each hour into `input_text.solar_live_curve`
+ *Chart visibility toggle** — `show_forecast_chart` in the Visual Editor, positioned below Node glow effect
+ *Solar design capacity** (`solar_design_wp`) — enter your system's Wp so the chart Y-axis scales accurately to your installation
+ *Color Theme** — customise node borders, flow/particle colours, chart line colours, and primary text colour; one-click Reset to defaults
+
  */
 
 // ═══════════════════════════════════════════════════════════════
@@ -65,19 +75,22 @@ const I18N = {
     slowDisch:'🔁 Xả rất chậm, chưa ước được thời gian hết pin',
     solarStat:'Solar', gridStat:'Lấy lưới', consumeStat:'Tiêu thụ',
     savingStat:'Tiết kiệm', systemStat:'⚙️ HỆ THỐNG', statsTitle:'Thống kê hôm nay',
+    solarProduced:'Solar', solarUsed:'Nhà dùng',
+    forecastToday:'☀️ Dự báo hôm nay', forecastTmr:'☀️ Dự báo ngày mai',
+    actualToday:'☀️ Thực tế hôm nay', peakForecast:'Dự báo', actualNow:'Thực tế',
     condMap:{'sunny':'☀️ Nắng','clear-night':'🌙 Trời quang','partlycloudy':'⛅ Ít mây','cloudy':'☁️ Nhiều mây','rainy':'🌧️ Có mưa','pouring':'⛈️ Mưa to','lightning':'⚡ Dông sét','fog':'🌫️ Sương mù','windy':'💨 Có gió'},
     days:['Chủ nhật','Thứ hai','Thứ ba','Thứ tư','Thứ năm','Thứ sáu','Thứ bảy'],
     months:['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'],
-    ticker(ws,daily,savFmt,cur,bPct,isCharge,isDisch,battSoc){
-      const kw=parseFloat(daily); let msg='';
-      if(ws==='rainy'||ws==='pouring') msg=`🌧️ Hôm nay trời mưa, sản lượng solar không tốt${kw>0?' — thu được '+daily+' kWh':''}.`;
+    ticker(ws,daily,dailyuse,savFmt,cur,bPct,isCharge,isDisch,battSoc){
+      const kw=parseFloat(daily); const ku=parseFloat(dailyuse); let msg='';
+      if(ws==='rainy'||ws==='pouring') msg=`🌧️ Hôm nay trời mưa, sản lượng solar không tốt${kw>0?' — sản xuất '+daily+' kWh':''}.`;
       else if(ws==='lightning') msg='⛈️ Thời tiết xấu, hệ thống solar tạm dừng bảo vệ thiết bị.';
-      else if(ws==='cloudy') msg=`☁️ Trời nhiều mây, solar cầm chừng${kw>0?' — '+daily+' kWh':''}.`;
-      else if(ws==='partlycloudy') msg=`⛅ Ít mây, solar khá tốt — ${daily} kWh hôm nay.`;
-      else if(ws==='sunny'){ if(kw>15) msg=`☀️ Nắng đẹp, solar xuất sắc — ${daily} kWh!`; else if(kw>8) msg=`☀️ Trời nắng tốt, solar thu được ${daily} kWh.`; else msg=`☀️ Trời nắng nhưng sản lượng còn thấp — ${daily} kWh.`; }
+      else if(ws==='cloudy') msg=`☁️ Trời nhiều mây, solar cầm chừng${kw>0?' — sản xuất '+daily+' kWh':''}.`;
+      else if(ws==='partlycloudy') msg=`⛅ Ít mây, solar khá tốt — sản xuất ${daily} kWh, nhà dùng ${dailyuse} kWh.`;
+      else if(ws==='sunny'){ if(kw>15) msg=`☀️ Nắng đẹp, solar xuất sắc — sản xuất ${daily} kWh, nhà dùng ${dailyuse} kWh!`; else if(kw>8) msg=`☀️ Trời nắng tốt, solar sản xuất ${daily} kWh, nhà dùng ${dailyuse} kWh.`; else msg=`☀️ Trời nắng nhưng sản lượng còn thấp — ${daily} kWh.`; }
       else if(ws==='fog') msg='🌫️ Sương mù dày, ánh sáng yếu — solar kém hiệu quả.';
-      else if(ws==='windy') msg=`💨 Trời có gió, solar bình thường — ${daily} kWh.`;
-      else msg=`🌤️ Solar thu được ${daily} kWh — tiết kiệm ${savFmt}${cur}.`;
+      else if(ws==='windy') msg=`💨 Trời có gió, solar bình thường — sản xuất ${daily} kWh.`;
+      else msg=`🌤️ Solar sản xuất ${daily} kWh, nhà dùng ${dailyuse} kWh — tiết kiệm ${savFmt}${cur}.`;
       if(battSoc===100) msg+=' ✅ Pin đã đầy!';
       else if(isCharge&&battSoc>80) msg+=` 🔋 Pin đang sạc và gần đầy (${bPct}%).`;
       else if(isDisch&&battSoc<20) msg+=` ⚠️ Pin đang cạn (${bPct}%), cần chú ý!`;
@@ -94,19 +107,22 @@ const I18N = {
     slowCharge:'⚡ Charging very slowly', slowDisch:'🔁 Discharging very slowly',
     solarStat:'Solar', gridStat:'From Grid', consumeStat:'Consume',
     savingStat:'Saving', systemStat:'⚙️ SYSTEM', statsTitle:"Today's Stats",
+    solarProduced:'Solar', solarUsed:'Home Used',
+    forecastToday:'☀️ Forecast today', forecastTmr:'☀️ Forecast tomorrow',
+    actualToday:'☀️ Actual today', peakForecast:'Forecast', actualNow:'Actual',
     condMap:{'sunny':'☀️ Sunny','clear-night':'🌙 Clear Night','partlycloudy':'⛅ Partly Cloudy','cloudy':'☁️ Cloudy','rainy':'🌧️ Rainy','pouring':'⛈️ Pouring','lightning':'⚡ Thunder','fog':'🌫️ Foggy','windy':'💨 Windy'},
     days:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
     months:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
-    ticker(ws,daily,savFmt,cur,bPct,isCharge,isDisch,battSoc){
+    ticker(ws,daily,dailyuse,savFmt,cur,bPct,isCharge,isDisch,battSoc){
       const kw=parseFloat(daily); let msg='';
-      if(ws==='rainy'||ws==='pouring') msg=`🌧️ Rainy day, solar limited${kw>0?' — '+daily+' kWh collected':''}.`;
+      if(ws==='rainy'||ws==='pouring') msg=`🌧️ Rainy day, solar limited${kw>0?' — produced '+daily+' kWh':''}.`;
       else if(ws==='lightning') msg='⛈️ Bad weather, solar paused for protection.';
       else if(ws==='cloudy') msg=`☁️ Cloudy, solar at reduced output${kw>0?' — '+daily+' kWh':''}.`;
-      else if(ws==='partlycloudy') msg=`⛅ Partly cloudy, solar performing well — ${daily} kWh today.`;
-      else if(ws==='sunny'){ if(kw>15) msg=`☀️ Great sunshine — ${daily} kWh!`; else if(kw>8) msg=`☀️ Good sunshine, collected ${daily} kWh.`; else msg=`☀️ Sunny but output still low — ${daily} kWh.`; }
+      else if(ws==='partlycloudy') msg=`⛅ Partly cloudy — produced ${daily} kWh, home used ${dailyuse} kWh.`;
+      else if(ws==='sunny'){ if(kw>15) msg=`☀️ Great sunshine — produced ${daily} kWh, home used ${dailyuse} kWh!`; else if(kw>8) msg=`☀️ Good sunshine — produced ${daily} kWh, home used ${dailyuse} kWh.`; else msg=`☀️ Sunny but output still low — ${daily} kWh.`; }
       else if(ws==='fog') msg='🌫️ Dense fog, poor solar performance.';
-      else if(ws==='windy') msg=`💨 Windy, solar normal — ${daily} kWh.`;
-      else msg=`🌤️ Solar collected ${daily} kWh — saved ${savFmt}${cur}.`;
+      else if(ws==='windy') msg=`💨 Windy, solar normal — produced ${daily} kWh.`;
+      else msg=`🌤️ Solar produced ${daily} kWh, home used ${dailyuse} kWh — saved ${savFmt}${cur}.`;
       if(battSoc===100) msg+=' ✅ Battery full!';
       else if(isCharge&&battSoc>80) msg+=` 🔋 Charging, nearly full (${bPct}%).`;
       else if(isDisch&&battSoc<20) msg+=` ⚠️ Battery low (${bPct}%)!`;
@@ -123,17 +139,20 @@ const I18N = {
     slowCharge:'⚡ Ladet sehr langsam', slowDisch:'🔁 Entladet sehr langsam',
     solarStat:'Solar', gridStat:'Netzbezug', consumeStat:'Verbrauch',
     savingStat:'Ersparnis', systemStat:'⚙️ SYSTEM', statsTitle:'Heutige Statistik',
+    solarProduced:'Solar', solarUsed:'Haus Verbrauch',
+    forecastToday:'☀️ Prognose heute', forecastTmr:'☀️ Prognose morgen',
+    actualToday:'☀️ Erzeugt heute', peakForecast:'Prognose', actualNow:'Aktuell',
     condMap:{'sunny':'☀️ Sonnig','clear-night':'🌙 Klare Nacht','partlycloudy':'⛅ Bewölkt','cloudy':'☁️ Bedeckt','rainy':'🌧️ Regen','pouring':'⛈️ Starkregen','lightning':'⚡ Gewitter','fog':'🌫️ Nebel','windy':'💨 Windig'},
     days:['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'],
     months:['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'],
-    ticker(ws,daily,savFmt,cur,bPct,isCharge,isDisch,battSoc){
+    ticker(ws,daily,dailyuse,savFmt,cur,bPct,isCharge,isDisch,battSoc){
       const kw=parseFloat(daily); let msg='';
       if(ws==='rainy'||ws==='pouring') msg=`🌧️ Regnerischer Tag, Solarertrag begrenzt${kw>0?' — '+daily+' kWh erzeugt':''}.`;
       else if(ws==='lightning') msg='⛈️ Schlechtes Wetter, Solar pausiert.';
-      else if(ws==='cloudy') msg=`☁️ Bewölkt, Solar läuft gedrosselt${kw>0?' — '+daily+' kWh':''}.`;
-      else if(ws==='partlycloudy') msg=`⛅ Teilweise bewölkt, Solar läuft gut — ${daily} kWh heute.`;
-      else if(ws==='sunny'){ if(kw>15) msg=`☀️ Sonnenschein, Solar ausgezeichnet — ${daily} kWh!`; else msg=`☀️ Gutes Wetter, ${daily} kWh erzeugt.`; }
-      else msg=`🌤️ Solar erzeugte ${daily} kWh — Ersparnis ${savFmt}${cur}.`;
+      else if(ws==='cloudy') msg=`☁️ Bewölkt, Solar gedrosselt${kw>0?' — '+daily+' kWh':''}.`;
+      else if(ws==='partlycloudy') msg=`⛅ Teilweise bewölkt — erzeugt ${daily} kWh, Haus verbrauchte ${dailyuse} kWh.`;
+      else if(ws==='sunny'){ if(kw>15) msg=`☀️ Sonnenschein — erzeugt ${daily} kWh, Haus ${dailyuse} kWh!`; else msg=`☀️ Gutes Wetter — ${daily} kWh erzeugt, Haus ${dailyuse} kWh.`; }
+      else msg=`🌤️ Solar erzeugte ${daily} kWh, Haus ${dailyuse} kWh — Ersparnis ${savFmt}${cur}.`;
       if(battSoc===100) msg+=' ✅ Akku voll!';
       else if(isCharge&&battSoc>80) msg+=` 🔋 Lädt, fast voll (${bPct}%).`;
       else if(isDisch&&battSoc<20) msg+=` ⚠️ Akku niedrig (${bPct}%)!`;
@@ -150,17 +169,20 @@ const I18N = {
     slowCharge:'⚡ Ricarica molto lenta', slowDisch:'🔁 Scarica molto lenta',
     solarStat:'Solare', gridStat:'Dalla rete', consumeStat:'Consumo',
     savingStat:'Risparmio', systemStat:'⚙️ SISTEMA', statsTitle:'Statistiche di oggi',
+    solarProduced:'Solare.', solarUsed:'Casa Usato',
+    forecastToday:'☀️ Previsione oggi', forecastTmr:'☀️ Previsione domani',
+    actualToday:'☀️ Reale oggi', peakForecast:'Previsione', actualNow:'Reale',
     condMap:{'sunny':'☀️ Soleggiato','clear-night':'🌙 Sereno','partlycloudy':'⛅ Nuvoloso','cloudy':'☁️ Coperto','rainy':'🌧️ Pioggia','pouring':'⛈️ Acquazzone','lightning':'⚡ Temporale','fog':'🌫️ Nebbia','windy':'💨 Vento'},
     days:['Domenica','Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato'],
     months:['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'],
-    ticker(ws,daily,savFmt,cur,bPct,isCharge,isDisch,battSoc){
+    ticker(ws,daily,dailyuse,savFmt,cur,bPct,isCharge,isDisch,battSoc){
       const kw=parseFloat(daily); let msg='';
       if(ws==='rainy'||ws==='pouring') msg=`🌧️ Giornata piovosa, solare limitato${kw>0?' — '+daily+' kWh prodotti':''}.`;
       else if(ws==='lightning') msg='⛈️ Brutto tempo, solare in pausa.';
       else if(ws==='cloudy') msg=`☁️ Nuvoloso, solare ridotto${kw>0?' — '+daily+' kWh':''}.`;
-      else if(ws==='partlycloudy') msg=`⛅ Parzialmente nuvoloso, solare buono — ${daily} kWh oggi.`;
-      else if(ws==='sunny'){ if(kw>15) msg=`☀️ Bella giornata, solare eccellente — ${daily} kWh!`; else msg=`☀️ Giornata di sole, ${daily} kWh prodotti.`; }
-      else msg=`🌤️ Solare ha prodotto ${daily} kWh — risparmio ${savFmt}${cur}.`;
+      else if(ws==='partlycloudy') msg=`⛅ Parzialmente nuvoloso — prodotti ${daily} kWh, casa usata ${dailyuse} kWh.`;
+      else if(ws==='sunny'){ if(kw>15) msg=`☀️ Bella giornata — prodotti ${daily} kWh, casa ${dailyuse} kWh!`; else msg=`☀️ Giornata di sole — ${daily} kWh prodotti, casa ${dailyuse} kWh.`; }
+      else msg=`🌤️ Solare ha prodotto ${daily} kWh, casa ${dailyuse} kWh — risparmio ${savFmt}${cur}.`;
       if(battSoc===100) msg+=' ✅ Batteria piena!';
       else if(isCharge&&battSoc>80) msg+=` 🔋 In ricarica, quasi piena (${bPct}%).`;
       else if(isDisch&&battSoc<20) msg+=` ⚠️ Batteria scarica (${bPct}%)!`;
@@ -177,17 +199,20 @@ const I18N = {
     slowCharge:'⚡ Charge très lente', slowDisch:'🔁 Décharge très lente',
     solarStat:'Solaire', gridStat:'Du réseau', consumeStat:'Conso.',
     savingStat:'Économie', systemStat:'⚙️ SYSTÈME', statsTitle:"Stats d'aujourd'hui",
+    solarProduced:'Solaire.', solarUsed:'Maison Utilisé',
+    forecastToday:"☀️ Prévision aujourd'hui", forecastTmr:'☀️ Prévision demain',
+    actualToday:"☀️ Réel aujourd'hui", peakForecast:'Prévision', actualNow:'Réel',
     condMap:{'sunny':'☀️ Ensoleillé','clear-night':'🌙 Nuit claire','partlycloudy':'⛅ Peu nuageux','cloudy':'☁️ Nuageux','rainy':'🌧️ Pluie','pouring':'⛈️ Forte pluie','lightning':'⚡ Orage','fog':'🌫️ Brouillard','windy':'💨 Venteux'},
     days:['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'],
     months:['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'],
-    ticker(ws,daily,savFmt,cur,bPct,isCharge,isDisch,battSoc){
+    ticker(ws,daily,dailyuse,savFmt,cur,bPct,isCharge,isDisch,battSoc){
       const kw=parseFloat(daily); let msg='';
       if(ws==='rainy'||ws==='pouring') msg=`🌧️ Journée pluvieuse, production solaire limitée${kw>0?' — '+daily+' kWh produits':''}.`;
       else if(ws==='lightning') msg='⛈️ Mauvais temps, solaire en pause.';
-      else if(ws==='cloudy') msg=`☁️ Nuageux, production solaire réduite${kw>0?' — '+daily+' kWh':''}.`;
-      else if(ws==='partlycloudy') msg=`⛅ Partiellement nuageux, solaire correct — ${daily} kWh aujourd'hui.`;
-      else if(ws==='sunny'){ if(kw>15) msg=`☀️ Belle journée, solaire excellent — ${daily} kWh !`; else msg=`☀️ Journée ensoleillée, ${daily} kWh produits.`; }
-      else msg=`🌤️ Le solaire a produit ${daily} kWh — économie ${savFmt}${cur}.`;
+      else if(ws==='cloudy') msg=`☁️ Nuageux, production réduite${kw>0?' — '+daily+' kWh':''}.`;
+      else if(ws==='partlycloudy') msg=`⛅ Partiellement nuageux — produit ${daily} kWh, maison utilisé ${dailyuse} kWh.`;
+      else if(ws==='sunny'){ if(kw>15) msg=`☀️ Belle journée — produit ${daily} kWh, maison ${dailyuse} kWh !`; else msg=`☀️ Journée ensoleillée — ${daily} kWh produits, maison ${dailyuse} kWh.`; }
+      else msg=`🌤️ Solaire a produit ${daily} kWh, maison ${dailyuse} kWh — économie ${savFmt}${cur}.`;
       if(battSoc===100) msg+=' ✅ Batterie pleine !';
       else if(isCharge&&battSoc>80) msg+=` 🔋 En charge, presque pleine (${bPct}%).`;
       else if(isDisch&&battSoc<20) msg+=` ⚠️ Batterie faible (${bPct}%) !`;
@@ -256,7 +281,7 @@ class SolarWeatherCardEditor extends HTMLElement {
     this._config={};
     this._hass=null;
     // track which accordion sections are open
-    this._open={display:true, weather:false, solar:false, battery:false, grid:false, stats:false, pricing:false};
+    this._open={display:true, weather:false, solar:false, battery:false, grid:false, stats:false, pricing:false, color:false};
   }
 
   set hass(h){ this._hass=h; this._syncPickers(); }
@@ -277,11 +302,17 @@ class SolarWeatherCardEditor extends HTMLElement {
     {
       id:'solar', label:'⚡ Solar',
       fields:[
-        {k:'solar_pv1_entity',         l:'⚡ Solar Array 1 power (W)',       r:true,  domain:'sensor'},
-        {k:'solar_pv2_entity',         l:'⚡ Solar Array 2 power (W)',       r:false, domain:'sensor'},
-        {k:'solar_pv1_voltage_entity', l:'⚡ Solar Array 1 voltage (V)',     r:false, domain:'sensor'},
-        {k:'solar_pv2_voltage_entity', l:'⚡ Solar Array 2 voltage (V)',     r:false, domain:'sensor'},
-        {k:'solar_today_entity',       l:'📊 Solar today (kWh)',             r:false, domain:'sensor'},
+        {k:'solar_pv1_entity',         l:'⚡ Solar Array 1 power (W)',          r:true,  domain:'sensor'},
+        {k:'solar_pv2_entity',         l:'⚡ Solar Array 2 power (W)',          r:false, domain:'sensor'},
+        {k:'solar_pv1_voltage_entity', l:'⚡ Solar Array 1 voltage (V)',        r:false, domain:'sensor'},
+        {k:'solar_pv2_voltage_entity', l:'⚡ Solar Array 2 voltage (V)',        r:false, domain:'sensor'},
+        {k:'solar_today_entity',       l:'📊 Solar produced today (kWh)',       r:false, domain:'sensor'},
+        {k:'solar_dailyuse_entity',    l:'🏠 Solar used by home today (kWh)',   r:false, domain:'sensor'},
+        {k:'solar_live_entity',        l:'⚡ Solar live total power (W)',       r:false, domain:'sensor'},
+        {k:'solar_live_curve_entity',  l:'📈 Solar live curve (input_text)',    r:false, domain:'sensor'},
+        {k:'solcast_today_entity',     l:'☀️ Solcast forecast today (kWh)',     r:false, domain:'sensor'},
+        {k:'solcast_tomorrow_entity',  l:'☀️ Solcast forecast tomorrow (kWh)',  r:false, domain:'sensor'},
+        {k:'solcast_detail_entity',    l:'📊 Solcast detailed forecast sensor', r:false, domain:'sensor'},
       ]
     },
     {
@@ -316,6 +347,7 @@ class SolarWeatherCardEditor extends HTMLElement {
       fields:[
         {k:'inverter_status_entity',   l:'⚙️ Inverter status',               r:false, domain:'sensor'},
         {k:'inverter_temp_entity',     l:'🌡️ Inverter temperature (°C)',      r:false, domain:'sensor'},
+        {k:'battery_temp_entity',      l:'🌡️ BMS temperature (°C)',           r:false, domain:'sensor'},
       ]
     },
   ];}
@@ -376,14 +408,20 @@ class SolarWeatherCardEditor extends HTMLElement {
     if(sec.id==='solar'){
       const solarUnit = this._config.solar_unit||'auto';
       const homeUnit  = this._config.home_unit||'auto';
+      const solarDesignWp = this._config.solar_design_wp||'';
       optionsHTML = `<div class="sec-opts">
-        <div class="opt-row" style="margin-bottom:4px">
+        <div class="opt-row" style="margin-bottom:8px">
           <label style="font-size:12px;font-weight:600">☀️ Solar power unit</label>
           <div class="bg">
             <div class="ob ${solarUnit==='auto'?'on':''}" data-t="solar_unit" data-v="auto">Auto</div>
             <div class="ob ${solarUnit==='W'?'on':''}"    data-t="solar_unit" data-v="W">W</div>
             <div class="ob ${solarUnit==='kW'?'on':''}"   data-t="solar_unit" data-v="kW">kW</div>
           </div>
+        </div>
+        <div class="opt-row" style="margin-bottom:4px">
+          <label style="font-size:12px;font-weight:600">⚡ Solar design capacity (Wp) — chart Y-axis max</label>
+          <input type="number" id="solarDesignWpInput" placeholder="e.g. 8000" min="100" max="100000" step="100" value="${solarDesignWp}" style="background:var(--input-fill-color,rgba(0,0,0,.04));border:1px solid var(--divider-color,#e0e0e0);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--primary-text-color);font-family:monospace;width:100%"/>
+          <div style="font-size:11px;color:var(--secondary-text-color);margin-top:4px;">Total design capacity (Wpv). Blank = auto 8000W. Chart will draw according to this value.</div>
         </div>
       </div>`;
     }
@@ -488,6 +526,7 @@ class SolarWeatherCardEditor extends HTMLElement {
     const showTmr   = this._config.show_tomorrow!==false;
     const showInfo  = this._config.show_weather_info!==false;
     const showGlow  = this._config.show_node_glow!==false;
+    const showForecastChart = this._config.show_forecast_chart!==false;
     const cur       = this._config.currency||'đ';
     const customTiers = this._config.pricing_tiers||'';
     const isDispOpen  = this._open.display;
@@ -495,6 +534,22 @@ class SolarWeatherCardEditor extends HTMLElement {
     const isLayoutOpen  = this._open.layout;
     const batX = this._config.node_bat_x??-40;
     const grdX = this._config.node_grd_x??295;
+    const nodeScale = parseFloat(this._config.node_scale??1.0);
+    const particleMult = parseFloat(this._config.particle_mult??1.0);
+    const isColorOpen = this._open.color||false;
+
+    // Color theme defaults
+    const colorBat  = this._config.color_node_bat  ||'#28e6a0';
+    const colorGrd  = this._config.color_node_grd  ||'#00d7ff';
+    const colorInv  = this._config.color_node_inv  ||'#b991ff';
+    const colorHom  = this._config.color_node_hom  ||'#ffb228';
+    const colorSolar= this._config.color_flow_solar||'#ffe83c';
+    const colorGrid = this._config.color_flow_grid ||'#50beff';
+    const colorBatt = this._config.color_flow_batt ||'#3ce878';
+    const colorHome = this._config.color_flow_home ||'#ff941d';
+    const colorChartFc  = this._config.color_chart_fc  ||'#f5a623';
+    const colorChartLive= this._config.color_chart_live||'#7ed321';
+    const colorText = this._config.color_text_primary||'#ffffff';
 
     this.shadowRoot.innerHTML=`<style>
       :host{display:block;padding:4px 0}
@@ -537,6 +592,12 @@ class SolarWeatherCardEditor extends HTMLElement {
       .lang-btn img{border-radius:2px;vertical-align:middle}
       .lang-btn.on{border-color:var(--primary-color);background:rgba(3,169,244,.12);color:var(--primary-color);font-weight:700}
       .hint{font-size:11px;color:var(--secondary-text-color);margin-top:4px;line-height:1.5}
+      .color-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px}
+      .color-item{display:flex;flex-direction:column;gap:4px}
+      .color-item label{font-size:11px;font-weight:600;color:var(--secondary-text-color)}
+      .color-preview-wrap{display:flex;align-items:center;gap:8px;background:var(--secondary-background-color);border:1.5px solid var(--divider-color);border-radius:8px;padding:6px 10px}
+      .color-preview-wrap input[type=color]{width:28px;height:28px;border:none;background:none;cursor:pointer;padding:0;border-radius:4px}
+      .color-hex{font-size:11px;font-family:monospace;color:var(--primary-text-color);flex:1}
     </style>
 
     <!-- CREDIT -->
@@ -595,6 +656,11 @@ class SolarWeatherCardEditor extends HTMLElement {
           <label class="tog"><input type="checkbox" id="glowTog" ${showGlow?'checked':''}/><span class="tog-sl"></span></label>
         </div>
 
+        <div class="toggle-row">
+          <label class="tl">📊 Show solar forecast chart</label>
+          <label class="tog"><input type="checkbox" id="forecastChartTog" ${showForecastChart?'checked':''}/><span class="tog-sl"></span></label>
+        </div>
+
       </div>
     </div>
 
@@ -631,25 +697,74 @@ class SolarWeatherCardEditor extends HTMLElement {
           Adjust if Battery or Grid node is cut off on small screens (iPhone, Galaxy S10...). SVG viewBox width = 346px.
         </div>
         <div class="sl-row">
-          <label>🔋 Battery node X position</label>
+          <label>🔋 Battery node X</label>
           <input type="range" id="batXSl" min="-50" max="80" value="${batX}" step="1"/>
           <span class="slv" id="batXV">${batX}</span>
         </div>
         <div class="sl-row" style="margin-top:6px">
-          <label>🔌 Grid node X position</label>
+          <label>🔌 Grid node X</label>
           <input type="range" id="grdXSl" min="214" max="345" value="${grdX}" step="1"/>
           <span class="slv" id="grdXV">${grdX}</span>
         </div>
+        <div class="sl-row" style="margin-top:6px">
+          <label>📐 Node scale (all 4)</label>
+          <input type="range" id="nodeScSl" min="0.5" max="1.2" value="${this._config.node_scale??1.0}" step="0.05"/>
+          <span class="slv" id="nodeScV">${((this._config.node_scale??1.0)*100).toFixed(0)}%</span>
+        </div>
+        <div class="sl-row" style="margin-top:6px">
+          <label>✦ Particle density (>1kW)</label>
+          <input type="range" id="partMSl" min="0.2" max="1.0" value="${this._config.particle_mult??1.0}" step="0.1"/>
+          <span class="slv" id="partMV">${Math.round((this._config.particle_mult??1.0)*100)}%</span>
+        </div>
         <div class="hint" style="margin-top:8px">
-          Default: Battery = <strong>-40</strong> (partially hidden left), Grid = <strong>295</strong> (partially hidden right).<br/>
-          For small screens try: Battery = <strong>4</strong>, Grid = <strong>250</strong>.
+          Default: Battery X = <strong>-40</strong>, Grid X = <strong>295</strong>, Scale = <strong>100%</strong>, Particles = <strong>100%</strong>.<br/>
+          Small screens: Battery = <strong>4</strong>, Grid = <strong>250</strong>. Low-end devices: Particles = <strong>40–60%</strong>.
+        </div>
+      </div>
+    </div>
+
+    <!-- COLOR THEME accordion -->
+    <div class="acc-wrap">
+      <div class="acc-head" id="head-color">
+        <span>🎨 Color Theme</span>
+        <span class="acc-arrow" id="arrow-color">${isColorOpen?'▾':'▸'}</span>
+      </div>
+      <div class="acc-body" id="body-color" style="display:${isColorOpen?'block':'none'}">
+        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:10px;letter-spacing:.4px">⬡ NODE BORDER COLORS</div>
+        <div class="color-grid">
+          <div class="color-item"><label>🔋 Battery</label><div class="color-preview-wrap"><input type="color" id="c_node_bat" value="${colorBat}" data-ck="color_node_bat"/><span class="color-hex">${colorBat}</span></div></div>
+          <div class="color-item"><label>🔌 Grid</label><div class="color-preview-wrap"><input type="color" id="c_node_grd" value="${colorGrd}" data-ck="color_node_grd"/><span class="color-hex">${colorGrd}</span></div></div>
+          <div class="color-item"><label>⚙️ Inverter</label><div class="color-preview-wrap"><input type="color" id="c_node_inv" value="${colorInv}" data-ck="color_node_inv"/><span class="color-hex">${colorInv}</span></div></div>
+          <div class="color-item"><label>🏠 Home</label><div class="color-preview-wrap"><input type="color" id="c_node_hom" value="${colorHom}" data-ck="color_node_hom"/><span class="color-hex">${colorHom}</span></div></div>
+        </div>
+        <div style="height:1px;background:var(--divider-color);margin:10px 0 10px"></div>
+        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:10px;letter-spacing:.4px">〰️ FLOW / PARTICLE COLORS</div>
+        <div class="color-grid">
+          <div class="color-item"><label>☀️ Solar flow</label><div class="color-preview-wrap"><input type="color" id="c_flow_solar" value="${colorSolar}" data-ck="color_flow_solar"/><span class="color-hex">${colorSolar}</span></div></div>
+          <div class="color-item"><label>🔌 Grid flow</label><div class="color-preview-wrap"><input type="color" id="c_flow_grid" value="${colorGrid}" data-ck="color_flow_grid"/><span class="color-hex">${colorGrid}</span></div></div>
+          <div class="color-item"><label>🔋 Battery flow</label><div class="color-preview-wrap"><input type="color" id="c_flow_batt" value="${colorBatt}" data-ck="color_flow_batt"/><span class="color-hex">${colorBatt}</span></div></div>
+          <div class="color-item"><label>🏠 Home flow</label><div class="color-preview-wrap"><input type="color" id="c_flow_home" value="${colorHome}" data-ck="color_flow_home"/><span class="color-hex">${colorHome}</span></div></div>
+        </div>
+        <div style="height:1px;background:var(--divider-color);margin:10px 0 10px"></div>
+        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:10px;letter-spacing:.4px">📊 CHART COLORS</div>
+        <div class="color-grid">
+          <div class="color-item"><label>📈 Forecast line</label><div class="color-preview-wrap"><input type="color" id="c_chart_fc" value="${colorChartFc}" data-ck="color_chart_fc"/><span class="color-hex">${colorChartFc}</span></div></div>
+          <div class="color-item"><label>📉 Live/actual line</label><div class="color-preview-wrap"><input type="color" id="c_chart_live" value="${colorChartLive}" data-ck="color_chart_live"/><span class="color-hex">${colorChartLive}</span></div></div>
+        </div>
+        <div style="height:1px;background:var(--divider-color);margin:10px 0 10px"></div>
+        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:10px;letter-spacing:.4px">🔤 TEXT COLOR</div>
+        <div class="color-grid">
+          <div class="color-item"><label>🔤 Primary text</label><div class="color-preview-wrap"><input type="color" id="c_text_primary" value="${colorText}" data-ck="color_text_primary"/><span class="color-hex">${colorText}</span></div></div>
+        </div>
+        <div style="margin-top:10px">
+          <button id="resetColors" style="padding:7px 14px;border-radius:8px;border:1.5px solid var(--divider-color);background:var(--secondary-background-color);font-size:12px;cursor:pointer;color:var(--primary-text-color)">↺ Reset to defaults</button>
         </div>
       </div>
     </div>`;
 
     // ── Accordion toggles ───────────────────────────────────────
     // ── Add fr to isParticle/wave/line check too
-    ['display','weather','solar','battery','grid','stats','pricing','layout'].forEach(id=>{
+    ['display','weather','solar','battery','grid','stats','pricing','layout','color'].forEach(id=>{
       const h=this.shadowRoot.getElementById('head-'+id);
       if(h) h.addEventListener('click',()=>this._toggle(id));
     });
@@ -714,6 +829,26 @@ class SolarWeatherCardEditor extends HTMLElement {
         this._fire();
       });
     }
+    const nodeScSl=this.shadowRoot.getElementById('nodeScSl');
+    if(nodeScSl){
+      nodeScSl.addEventListener('input',e=>{
+        this.shadowRoot.getElementById('nodeScV').textContent=Math.round(e.target.value*100)+'%';
+      });
+      nodeScSl.addEventListener('change',e=>{
+        this._config={...this._config,node_scale:parseFloat(e.target.value)};
+        this._fire();
+      });
+    }
+    const partMSl=this.shadowRoot.getElementById('partMSl');
+    if(partMSl){
+      partMSl.addEventListener('input',e=>{
+        this.shadowRoot.getElementById('partMV').textContent=Math.round(e.target.value*100)+'%';
+      });
+      partMSl.addEventListener('change',e=>{
+        this._config={...this._config,particle_mult:parseFloat(e.target.value)};
+        this._fire();
+      });
+    }
 
     // ── Toggles ─────────────────────────────────────────────────
     this.shadowRoot.getElementById('infoTog').addEventListener('change',e=>{
@@ -725,6 +860,9 @@ class SolarWeatherCardEditor extends HTMLElement {
     this.shadowRoot.getElementById('glowTog').addEventListener('change',e=>{
       this._config={...this._config,show_node_glow:e.target.checked}; this._fire();
     });
+    this.shadowRoot.getElementById('forecastChartTog').addEventListener('change',e=>{
+      this._config={...this._config,show_forecast_chart:e.target.checked}; this._fire();
+    });
 
     // ── Pricing ─────────────────────────────────────────────────
     this.shadowRoot.getElementById('curInput').addEventListener('change',e=>{
@@ -734,6 +872,38 @@ class SolarWeatherCardEditor extends HTMLElement {
       const v=e.target.value.trim(); const c={...this._config};
       if(v) c.pricing_tiers=v; else delete c.pricing_tiers;
       this._config=c; this._fire();
+    });
+
+    // ── Solar design capacity ─────────────────────────────────
+    const solarWpInp=this.shadowRoot.getElementById('solarDesignWpInput');
+    if(solarWpInp) solarWpInp.addEventListener('change',e=>{
+      const v=parseInt(e.target.value);
+      const c={...this._config};
+      if(v>0) c.solar_design_wp=v; else delete c.solar_design_wp;
+      this._config=c; this._fire();
+    });
+
+    // ── Color pickers ────────────────────────────────────────
+    this.shadowRoot.querySelectorAll('input[type=color][data-ck]').forEach(inp=>{
+      inp.addEventListener('input',e=>{
+        const hex=e.target.value;
+        const span=e.target.parentElement.querySelector('.color-hex');
+        if(span) span.textContent=hex;
+      });
+      inp.addEventListener('change',e=>{
+        const k=e.target.dataset.ck, v=e.target.value;
+        this._config={...this._config,[k]:v}; this._fire();
+      });
+    });
+
+    // ── Reset colors ─────────────────────────────────────────
+    const resetBtn=this.shadowRoot.getElementById('resetColors');
+    if(resetBtn) resetBtn.addEventListener('click',()=>{
+      const c={...this._config};
+      ['color_node_bat','color_node_grd','color_node_inv','color_node_hom',
+       'color_flow_solar','color_flow_grid','color_flow_batt','color_flow_home',
+       'color_chart_fc','color_chart_live','color_text_primary'].forEach(k=>delete c[k]);
+      this._config=c; this._fire(); this._render();
     });
 
     // ── ha-entity-picker events ─────────────────────────────────
@@ -763,7 +933,7 @@ customElements.define('solar-weather-card-editor',SolarWeatherCardEditor);
 // CARD
 // ═══════════════════════════════════════════════════════════════
 class SolarWeatherCard extends HTMLElement {
-  constructor(){ super(); this.attachShadow({mode:'open'}); this._hass=null; this._config={}; this._iv=null; }
+  constructor(){ super(); this.attachShadow({mode:'open'}); this._hass=null; this._config={}; this._iv=null; this._tickerIv=null; this._raf=null; this._lastSig=null; }
 
   static getConfigElement(){ return document.createElement('solar-weather-card-editor'); }
   static getStubConfig(){
@@ -771,8 +941,8 @@ class SolarWeatherCard extends HTMLElement {
       flow_style:'particle', language:'vi', background_opacity:45,
       battery_mode:'single', battery_invert:false, battery_unit:'auto',
       grid_mode:'single', grid_invert:false, grid_unit:'auto',
-      solar_unit:'auto', home_unit:'auto',
-      show_weather_info:true, show_tomorrow:true, show_node_glow:true, currency:'đ', pricing_tiers:'',
+      solar_unit:'auto', home_unit:'auto', solar_design_wp:8000,
+      show_weather_info:true, show_tomorrow:true, show_node_glow:true, show_forecast_chart:true, currency:'đ', pricing_tiers:'',
       weather_entity:'', temperature_entity:'', humidity_entity:'',
       pressure_entity:'', uv_entity:'', rain_entity:'',
       solar_pv1_entity:'', solar_pv2_entity:'',
@@ -786,10 +956,71 @@ class SolarWeatherCard extends HTMLElement {
     };
   }
 
-  setConfig(c){ this._config=c||{}; if(this._hass) this._render(); }
-  set hass(h){ this._hass=h; this._render(); }
-  connectedCallback(){ this._iv=setInterval(()=>this._render(),30000); this._render(); }
-  disconnectedCallback(){ if(this._iv) clearInterval(this._iv); }
+  setConfig(c){
+    this._config=c||{};
+    this._lastSig=null;
+    if(this._hass) this._schedRender();
+  }
+  set hass(h){
+    this._hass=h;
+    this._schedRender();
+  }
+  connectedCallback(){
+    // Clock update mỗi 30s — chỉ update DOM clock, không render lại toàn bộ
+    this._iv=setInterval(()=>this._tickClock(),30000);
+    // Ticker chỉ reset mỗi 5 phút
+    this._tickerIv=setInterval(()=>{ this._lastSig=null; this._schedRender(); },300000);
+    this._schedRender();
+  }
+  disconnectedCallback(){
+    if(this._iv) clearInterval(this._iv);
+    if(this._tickerIv) clearInterval(this._tickerIv);
+    if(this._raf) cancelAnimationFrame(this._raf);
+  }
+  // Debounce render — gộp nhiều hass update liên tiếp thành 1 lần render
+  _schedRender(){
+    if(this._raf) cancelAnimationFrame(this._raf);
+    this._raf=requestAnimationFrame(()=>{ this._raf=null; this._smartRender(); });
+  }
+  // Chỉ render khi giá trị sensor thực sự thay đổi
+  _smartRender(){
+    const sig=this._buildSig();
+    if(sig===this._lastSig) return; // không có gì thay đổi
+    this._lastSig=sig;
+    this._render();
+  }
+  _buildSig(){
+    if(!this._hass||!this._config) return '';
+    const keys=[
+      'solar_pv1_entity','solar_pv2_entity',
+      'battery_soc_entity','battery_flow_entity','battery_charge_entity','battery_discharge_entity',
+      'grid_flow_entity','grid_import_entity','grid_export_entity',
+      'home_consumption_entity','inverter_switch_entity','grid_direct_entity',
+      'weather_entity','temperature_entity','humidity_entity',
+      'solar_today_entity','solar_dailyuse_entity','solar_live_entity',
+      'solcast_today_entity','solcast_tomorrow_entity','solcast_detail_entity',
+      'solar_live_curve_entity','grid_today_entity','consumption_today_entity',
+      'inverter_status_entity','battery_voltage_entity',
+    ];
+    return keys.map(k=>{
+      const id=this._config[k];
+      if(!id) return '';
+      const s=this._hass.states[id];
+      return s?s.state:'';
+    }).join('|');
+  }
+  // Chỉ update đồng hồ mà không render lại SVG
+  _tickClock(){
+    if(!this.shadowRoot) return;
+    const now=new Date();
+    let h=now.getHours(),m=now.getMinutes();
+    const ap=h>=12?'PM':'AM'; h=h%12||12;
+    const hh=String(h).padStart(2,'0'),mm=String(m).padStart(2,'0');
+    const clockEl=this.shadowRoot.querySelector('#live-clock');
+    if(clockEl) clockEl.textContent=`${hh}:${mm}`;
+    const apEl=this.shadowRoot.querySelector('#live-ap');
+    if(apEl) apEl.textContent=ap;
+  }
   getCardSize(){ return 14; }
 
   _g(k,def='--'){
@@ -959,23 +1190,29 @@ class SolarWeatherCard extends HTMLElement {
     return val%1===0?String(val):val.toFixed(2);
   }
 
-  // flowLevel với type
+  // flowLevel với type + particle multiplier (0.2–1.0) để giảm tải trên thiết bị yếu
   _flowLevel(w,type='default'){
+    const mult=parseFloat(this._config.particle_mult??1.0);
+    const _sc=(fl)=>{
+      // Chỉ scale count khi count>6 (>1000W) — count thấp giữ nguyên
+      if(fl.count<=6) return fl;
+      return{...fl, count:Math.max(6,Math.round(fl.count*mult))};
+    };
     if(type==='solar'){
-      if(w<200)  return{dur:4.0,count:2,size:2.0};  if(w<600)  return{dur:3.2,count:4,size:2.4};
-      if(w<1200) return{dur:2.5,count:6,size:2.8};  if(w<2500) return{dur:1.8,count:9,size:3.2};
-      if(w<4000) return{dur:1.3,count:13,size:3.6}; if(w<6000) return{dur:0.9,count:17,size:4.0};
-      return{dur:0.6,count:22,size:4.5};
+      if(w<200)  return _sc({dur:4.0,count:2,size:2.0});  if(w<600)  return _sc({dur:3.2,count:4,size:2.4});
+      if(w<1200) return _sc({dur:2.5,count:6,size:2.8});  if(w<2500) return _sc({dur:1.8,count:9,size:3.2});
+      if(w<4000) return _sc({dur:1.3,count:13,size:3.6}); if(w<6000) return _sc({dur:0.9,count:17,size:4.0});
+      return _sc({dur:0.6,count:22,size:4.5});
     }
     if(type==='battery'||type==='grid'||type==='home'){
-      if(w<150)  return{dur:4.0,count:2,size:2.0};  if(w<500)  return{dur:3.2,count:4,size:2.4};
-      if(w<1000) return{dur:2.5,count:6,size:2.8};  if(w<2000) return{dur:1.8,count:9,size:3.2};
-      if(w<3000) return{dur:1.3,count:13,size:3.6}; if(w<4500) return{dur:0.9,count:17,size:4.0};
-      return{dur:0.6,count:22,size:4.5};
+      if(w<150)  return _sc({dur:4.0,count:2,size:2.0});  if(w<500)  return _sc({dur:3.2,count:4,size:2.4});
+      if(w<1000) return _sc({dur:2.5,count:6,size:2.8});  if(w<2000) return _sc({dur:1.8,count:9,size:3.2});
+      if(w<3000) return _sc({dur:1.3,count:13,size:3.6}); if(w<4500) return _sc({dur:0.9,count:17,size:4.0});
+      return _sc({dur:0.6,count:22,size:4.5});
     }
-    if(w<300) return{dur:2.2,count:5,size:2.6}; if(w<800) return{dur:1.7,count:8,size:3.0};
-    if(w<2000) return{dur:1.1,count:12,size:3.5}; if(w<4000) return{dur:0.65,count:18,size:4.0};
-    return{dur:0.30,count:25,size:4.5};
+    if(w<300) return _sc({dur:2.2,count:5,size:2.6}); if(w<800) return _sc({dur:1.7,count:8,size:3.0});
+    if(w<2000) return _sc({dur:1.1,count:12,size:3.5}); if(w<4000) return _sc({dur:0.65,count:18,size:4.0});
+    return _sc({dur:0.30,count:25,size:4.5});
   }
 
   // ── Particle flow ────────────────────────────────────────────
@@ -1067,9 +1304,15 @@ class SolarWeatherCard extends HTMLElement {
     s+=`<rect x="${x}" y="${y}" width="${w}" height="${topH}" fill="none" stroke="${cc}" stroke-width=".35" stroke-dasharray="2,16" opacity=".07"/>`;
     s+=`<ellipse cx="${cx}" cy="${y+topH}" rx="${w*.42}" ry="${topH*.28}" fill="${glow}" opacity=".15" filter="url(#pBlur)"/>`;
     s+=`<rect x="${x}" y="${y}" width="${w}" height="20" fill="rgba(255,255,255,.06)"/></g>`;
-    if(active){ s+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="13" fill="none" stroke="${cc}" stroke-width="1.8"><animate attributeName="stroke-opacity" values=".2;.2;1;.2;.2;.7;.2" dur="1.4s" repeatCount="indefinite" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1"/></rect>`; }
-    else { s+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="13" fill="none" stroke="${cc}" stroke-width="1.2" opacity=".35"/>`; }
-    s+=`<rect x="${x+1}" y="${y+1}" width="${w-2}" height="${h-2}" rx="12" fill="none" stroke="${glow}" stroke-width="3" filter="url(#pBlurSm)"><animate attributeName="opacity" values=".2;.5;.2" dur="2.5s" repeatCount="indefinite"/></rect>`;
+    if(showGlow){
+      // Với glow: border nhịp tim khi active
+      if(active){ s+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="13" fill="none" stroke="${cc}" stroke-width="1.8"><animate attributeName="stroke-opacity" values=".2;.2;1;.2;.2;.7;.2" dur="1.4s" repeatCount="indefinite" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1"/></rect>`; }
+      else { s+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="13" fill="none" stroke="${cc}" stroke-width="1.2" opacity=".35"/>`; }
+      s+=`<rect x="${x+1}" y="${y+1}" width="${w-2}" height="${h-2}" rx="12" fill="none" stroke="${glow}" stroke-width="3" filter="url(#pBlurSm)"><animate attributeName="opacity" values=".2;.5;.2" dur="2.5s" repeatCount="indefinite"/></rect>`;
+    } else {
+      // Không glow: border sáng tĩnh, không animation
+      s+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="13" fill="none" stroke="${cc}" stroke-width="${active?'1.8':'1.2'}" opacity="${active?'.85':'.35'}"/>`;
+    }
     const cs=10,cw=2;
     s+=`<path d="M${x},${y+topH-cs} L${x},${y+topH} L${x+cs},${y+topH}" fill="none" stroke="${cc}" stroke-width="${cw}" stroke-linecap="round" opacity=".85"/>`;
     s+=`<path d="M${x+w},${y+topH-cs} L${x+w},${y+topH} L${x+w-cs},${y+topH}" fill="none" stroke="${cc}" stroke-width="${cw}" stroke-linecap="round" opacity=".85"/>`;
@@ -1110,7 +1353,27 @@ class SolarWeatherCard extends HTMLElement {
     const showTmr=cfg.show_tomorrow!==false;
     const showInfo=cfg.show_weather_info!==false;
     const showGlow=cfg.show_node_glow!==false;
+    const showForecastChart=cfg.show_forecast_chart!==false;
     const currency=cfg.currency||'đ';
+
+    // Color theme
+    const clrNodeBat  = cfg.color_node_bat  ||'rgba(40,230,160,1)';
+    const clrNodeGrd  = cfg.color_node_grd  ||'rgba(0,215,255,1)';
+    const clrNodeInv  = cfg.color_node_inv  ||'rgba(185,145,255,1)';
+    const clrNodeHom  = cfg.color_node_hom  ||'rgba(255,178,40,1)';
+    const clrNodeBatG = cfg.color_node_bat  ? cfg.color_node_bat+'88' : 'rgba(30,190,120,.5)';
+    const clrNodeGrdG = cfg.color_node_grd  ? cfg.color_node_grd+'88' : 'rgba(0,165,240,.48)';
+    const clrNodeInvG = cfg.color_node_inv  ? cfg.color_node_inv+'88' : 'rgba(145,90,255,.48)';
+    const clrNodeHomG = cfg.color_node_hom  ? cfg.color_node_hom+'88' : 'rgba(220,132,14,.48)';
+    const clrFlowSolar= cfg.color_flow_solar||'rgba(255,232,60,.95)';
+    const clrFlowGrid = cfg.color_flow_grid ||'rgba(80,190,255,.95)';
+    const clrFlowBatt = cfg.color_flow_batt ||'rgba(60,232,120,.95)';
+    const clrFlowHome = cfg.color_flow_home ||'rgba(255,148,45,.95)';
+    const clrChartFc  = cfg.color_chart_fc  ||'rgba(245,166,35,1)';
+    const clrChartLive= cfg.color_chart_live||'rgba(126,211,33,1)';
+    const clrTextPrim = cfg.color_text_primary||'rgba(255,255,255,1)';
+    // solar design capacity for chart Y-axis
+    const solarDesignWp = parseInt(cfg.solar_design_wp||0)||8000;
 
     // ── Sensors ──────────────────────────────────────────────
     // Đọc sensors — theo YAML gốc: đọc trực tiếp từ hass.states
@@ -1218,10 +1481,15 @@ class SolarWeatherCard extends HTMLElement {
     const gridDirectW=invOff?this._gf('grid_direct_entity',0):0;
     const hasGridDirect=invOff&&gridDirectW>10;
     const daily=this._gf('solar_today_entity',0).toFixed(1);
+    const dailyuse=this._gf('solar_dailyuse_entity',0).toFixed(1);
+    const liveW=this._gf('solar_live_entity',0);
     const gridDaily=this._gf('grid_today_entity',0).toFixed(1);
     const combinedFmt=this._gf('consumption_today_entity',0).toFixed(1);
     const saving=this._calcCost(parseFloat(daily));
     const savFmt=this._fmtSaving(saving);
+    // Saving based on solar-used-by-home (dailyuse), not total production
+    const savingUse=this._calcCost(parseFloat(dailyuse));
+    const savFmtUse=this._fmtSaving(savingUse);
     const luxState=this._g('inverter_status_entity','--');
     const invTemp=this._gf('inverter_temp_entity',0).toFixed(1);
     const batTemp=this._gf('battery_temp_entity',0).toFixed(1);
@@ -1257,10 +1525,13 @@ class SolarWeatherCard extends HTMLElement {
     const my2=(1-tMoon)*(1-tMoon)*65+2*(1-tMoon)*tMoon*145+tMoon*tMoon*65;
 
     // Layout
-    const BAT_X=cfg.node_bat_x??-40,BAT_Y=100,BAT_W=92,BAT_H=126;
-    const GRD_X=cfg.node_grd_x??295,GRD_Y=100,GRD_W=92,GRD_H=126;
-    const INV_X=120,INV_Y=220,INV_W=106,INV_H=130;
-    const HOM_X=120,HOM_Y=400,HOM_W=106,HOM_H=124;
+    const _ns=parseFloat(cfg.node_scale??1.0);
+    const BAT_X=cfg.node_bat_x??-40,BAT_Y=100,BAT_W=Math.round(92*_ns),BAT_H=Math.round(126*_ns);
+    const GRD_X=cfg.node_grd_x??295,GRD_Y=100,GRD_W=Math.round(92*_ns),GRD_H=Math.round(126*_ns);
+    const INV_W=Math.round(106*_ns),INV_H=Math.round(130*_ns);
+    const HOM_W=Math.round(106*_ns),HOM_H=Math.round(124*_ns);
+    const INV_X=120,INV_Y=220;
+    const HOM_X=120,HOM_Y=400;
     const BAT_CX=BAT_X+BAT_W/2,BAT_CY=BAT_Y+BAT_H/2,BAT_R=BAT_X+BAT_W,BAT_BOT=BAT_Y+BAT_H;
     const GRD_CX=GRD_X+GRD_W/2,GRD_CY=GRD_Y+GRD_H/2,GRD_L=GRD_X;
     const INV_CX=INV_X+INV_W/2,INV_TOP=INV_Y,INV_BOT=INV_Y+INV_H;
@@ -1278,12 +1549,12 @@ class SolarWeatherCard extends HTMLElement {
 
     if(hasSolar){
       const sp=`M ${bx.toFixed(1)},${(by+7).toFixed(1)} C ${bx.toFixed(1)},${INV_TOP-70} ${INV_CX},${INV_TOP-150} ${INV_CX},${INV_TOP}`;
-      if(isParticle||isWave) addFlow(sp,'rgba(255,232,60,.95)','rgba(255,190,20,.55)',this._flowLevel(solarW,'solar'));
+      if(isParticle||isWave) addFlow(sp,clrFlowSolar,'rgba(255,190,20,.55)',this._flowLevel(solarW,'solar'));
       else addLine(sp,solarW,8000,'rgba(255,250,200,X)','rgba(255,215,55,X)','rgba(255,235,120,X)');
     }
     if(isCharge){
-      const p=`M${INV_X+30},${INV_BOT} C ${INV_X},${INV_BOT+90} ${BAT_CX},${BAT_BOT+180} ${BAT_CX},${BAT_BOT}`;
-      if(isParticle||isWave) addFlow(p,'rgba(60,232,120,.95)','rgba(20,160,70,.55)',this._flowLevel(battFlW,'battery'));
+      const p=`M${INV_X+50},${INV_BOT} C ${INV_X+90},${INV_BOT-90} ${BAT_CX},${BAT_BOT+180} ${BAT_CX},${BAT_BOT}`;
+      if(isParticle||isWave) addFlow(p,clrFlowBatt,'rgba(20,160,70,.55)',this._flowLevel(battFlW,'battery'));
       else addLine(p,battFlW,6000,'rgba(200,255,220,X)','rgba(80,220,120,X)','rgba(160,240,180,X)');
     }
     if(isDisch){
@@ -1293,17 +1564,17 @@ class SolarWeatherCard extends HTMLElement {
     }
     if(hasGrid){
       const gp=gridFlW>10?`M${INV_CX},${INV_TOP} C ${INV_CX},${INV_TOP-60} ${GRD_L},${GRD_CY+60} ${GRD_L},${GRD_CY}`:`M${GRD_L},${GRD_CY} C ${GRD_L},${GRD_CY+40} ${INV_CX+10},${INV_TOP-90} ${INV_CX+10},${INV_TOP}`;
-      if(isParticle||isWave) addFlow(gp,'rgba(80,190,255,.95)','rgba(30,130,230,.55)',this._flowLevel(Math.abs(gridFlW),'grid'));
+      if(isParticle||isWave) addFlow(gp,clrFlowGrid,'rgba(30,130,230,.55)',this._flowLevel(Math.abs(gridFlW),'grid'));
       else addLine(gp,Math.abs(gridFlW),6000,'rgba(220,240,255,X)','rgba(90,175,255,X)','rgba(160,210,255,X)');
     }
     if(hasHome){
       const p=`M${INV_CX},${INV_BOT+2} C ${INV_CX},${INV_BOT+20} ${HOM_CX},${HOM_TOP-20} ${HOM_CX},${HOM_TOP-2}`;
-      if(isParticle||isWave) addFlow(p,'rgba(255,148,45,.95)','rgba(200,90,10,.55)',this._flowLevel(homeFlW,'home'));
+      if(isParticle||isWave) addFlow(p,clrFlowHome,'rgba(200,90,10,.55)',this._flowLevel(homeFlW,'home'));
       else addLine(p,homeFlW,6000,'rgba(255,230,180,X)','rgba(255,148,55,X)','rgba(255,190,100,X)');
     }
     if(hasGridDirect){
       const p=`M${GRD_CX},${GRD_Y+GRD_H} C ${GRD_CX},${GRD_Y+GRD_H+80} ${HOM_CX+60},${HOM_TOP-60} ${HOM_CX},${HOM_TOP}`;
-      if(isParticle||isWave) addFlow(p,'rgba(80,190,255,.95)','rgba(30,130,230,.55)',this._flowLevel(gridDirectW,'grid'));
+      if(isParticle||isWave) addFlow(p,clrFlowGrid,'rgba(30,130,230,.55)',this._flowLevel(gridDirectW,'grid'));
       else addLine(p,gridDirectW,6000,'rgba(220,240,255,X)','rgba(90,175,255,X)','rgba(160,210,255,X)');
     }
 
@@ -1452,10 +1723,139 @@ class SolarWeatherCard extends HTMLElement {
 
     // Node cards
     const isInvActive=!invOff&&(hasSolar||hasHome||hasGrid||isCharge||isDisch);
-    const foBAT=this._svgCard(BAT_X,BAT_Y,BAT_W,BAT_H,'rgba(40,230,160,1)','rgba(30,190,120,.5)','rgba(0,14,8,.97)',batIcoFn,battW,battDir,`${bVolt.toFixed(0)}V DC`,isCharge||isDisch,showGlow);
-    const foINV=this._svgCard(INV_X,INV_Y,INV_W,INV_H,'rgba(185,145,255,1)','rgba(145,90,255,.48)','rgba(6,2,18,.97)',invIcoFn,`${gridV}V`,'AC Output',`${bVolt.toFixed(0)}V BAT · ${pvDC}V PV`,isInvActive,showGlow);
-    const foGRD=this._svgCard(GRD_X,GRD_Y,GRD_W,GRD_H,'rgba(0,215,255,1)','rgba(0,165,240,.48)','rgba(0,10,20,.97)',grdIcoFn,gridW,gridDir,`${gridV}V AC`,hasGrid,showGlow);
-    const foHOM=this._svgCard(HOM_X,HOM_Y,HOM_W,HOM_H,'rgba(255,178,40,1)','rgba(220,132,14,.48)','rgba(12,6,0,.97)',homIcoFn,homeW,T.homeConsume,'Home',hasHome,showGlow);
+    const foBAT=this._svgCard(BAT_X,BAT_Y,BAT_W,BAT_H,clrNodeBat,clrNodeBatG,'rgba(0,14,8,.97)',batIcoFn,battW,battDir,`${bVolt.toFixed(0)}V DC`,isCharge||isDisch,showGlow);
+    const foINV=this._svgCard(INV_X,INV_Y,INV_W,INV_H,clrNodeInv,clrNodeInvG,'rgba(6,2,18,.97)',invIcoFn,`${gridV}V`,'AC Output',`${bVolt.toFixed(0)}V BAT · ${pvDC}V PV`,isInvActive,showGlow);
+    const foGRD=this._svgCard(GRD_X,GRD_Y,GRD_W,GRD_H,clrNodeGrd,clrNodeGrdG,'rgba(0,10,20,.97)',grdIcoFn,gridW,gridDir,`${gridV}V AC`,hasGrid,showGlow);
+    const foHOM=this._svgCard(HOM_X,HOM_Y,HOM_W,HOM_H,clrNodeHom,clrNodeHomG,'rgba(12,6,0,.97)',homIcoFn,homeW,T.homeConsume,'Home',hasHome,showGlow);
+
+    // ── Solar Chart SVG (cạnh node Home) ─────────────────────
+    const solarChartSVG=(()=>{
+      const cX=HOM_X+HOM_W+15, cY=HOM_Y-20;
+      const cW=158, cH=HOM_H+30;
+      const pL=26, pB=22, pT=32, pR=6;
+      const plotW=cW-pL-pR, plotH=cH-pT-pB;
+      const maxW=solarDesignWp;
+      const nowHour=new Date().getHours()+new Date().getMinutes()/60;
+      const hToX=h=>cX+pL+(h-6)/12*plotW;
+      const wToY=w=>cY+pT+plotH-Math.min(w,maxW)/maxW*plotH;
+
+      // Solcast detailed forecast curve
+      let curve=[];
+      try {
+        const sid=cfg.solcast_detail_entity;
+        const solcast=sid&&this._hass.states[sid];
+        if(solcast&&solcast.attributes&&solcast.attributes.detailedForecast){
+          for(const pt of solcast.attributes.detailedForecast){
+            const sh=new Date(pt.period_start).getHours()+new Date(pt.period_start).getMinutes()/60;
+            const sw=Math.round((pt.pv_estimate||0)*1000);
+            if(sh>=6&&sh<=18) curve.push({h:sh,w:sw});
+          }
+        }
+      } catch(e){}
+
+      // Forecast peak near now
+      let peakW=0;
+      if(curve.length>0){
+        const nh=new Date().getHours()+new Date().getMinutes()/60;
+        const cl=curve.reduce((a,b)=>Math.abs(b.h-nh)<Math.abs(a.h-nh)?b:a);
+        peakW=Math.round(cl.w);
+      }
+
+      // FC polygon points
+      let fcFill='', fcPts='';
+      if(curve.length>0){
+        const pts=[];
+        pts.push(`${hToX(6)},${wToY(0)}`);
+        for(const p of curve){
+          if(p.h>=6&&p.h<=18&&!isNaN(p.w)) pts.push(`${hToX(p.h)},${wToY(p.w)}`);
+        }
+        pts.push(`${hToX(18)},${wToY(0)}`);
+        fcFill=pts.join(' ');
+        fcPts=pts.slice(1,pts.length-1).join(' ');
+      }
+
+      // Live curve from input_text entity
+      let livePoints=[];
+      try {
+        const lid=cfg.solar_live_curve_entity;
+        const lcState=lid&&this._hass.states[lid];
+        const raw=lcState&&lcState.state&&lcState.state!=='unknown'&&lcState.state!=='unavailable'?lcState.state:'';
+        if(raw){
+          for(const kv of raw.split(',')){
+            const parts=kv.split(':');
+            if(parts.length===2){
+              const ph=parseInt(parts[0]),pw=parseInt(parts[1]);
+              if(!isNaN(ph)&&!isNaN(pw)&&ph>=6&&ph<=18) livePoints.push({h:ph,w:pw});
+            }
+          }
+        }
+      } catch(e){}
+
+      let livePts='', liveFill='';
+      if(livePoints.length>0){
+        const lp=[`${hToX(6)},${wToY(0)}`];
+        for(const p of livePoints) lp.push(`${hToX(p.h)},${wToY(p.w)}`);
+        const lastH=livePoints[livePoints.length-1].h;
+        liveFill=lp.join(' ')+' '+hToX(lastH)+','+wToY(0);
+        livePts=lp.join(' ');
+      } else if(nowHour>=6&&nowHour<=18){
+        const lx=hToX(nowHour),ly=wToY(liveW||0);
+        liveFill=`${hToX(6)},${wToY(0)} ${lx},${ly} ${lx},${wToY(0)}`;
+        livePts=`${hToX(6)},${wToY(0)} ${lx},${ly}`;
+      }
+
+      // Solcast kWh totals
+      const scTodayRaw=cfg.solcast_today_entity&&this._hass.states[cfg.solcast_today_entity];
+      const scToday=scTodayRaw&&scTodayRaw.state!=='unavailable'&&scTodayRaw.state!=='unknown'?parseFloat(scTodayRaw.state)||0:0;
+      const scTmrRaw=cfg.solcast_tomorrow_entity&&this._hass.states[cfg.solcast_tomorrow_entity];
+      const scTmr=scTmrRaw&&scTmrRaw.state!=='unavailable'&&scTmrRaw.state!=='unknown'?parseFloat(scTmrRaw.state)||0:0;
+      const solarTodayKwh=parseFloat(daily)||0;
+      const cx2=cX+cW/2;
+
+      let s='';
+      // Background
+      s+=`<rect x="${cX}" y="${cY}" width="${cW}" height="${cH}" rx="10" fill="rgba(0,0,0,.4)" stroke="rgba(255,255,255,.12)" stroke-width="1"/>`;
+      // Labels above chart
+      s+=`<text x="${cx2}" y="${cY-45}" text-anchor="middle" fill="${clrChartLive}" font-size="12" font-weight="700" font-family="Inter">${T.actualToday}: ${solarTodayKwh>0?solarTodayKwh.toFixed(1):'--'} kWh</text>`;
+      s+=`<text x="${cx2}" y="${cY-25}" text-anchor="middle" fill="${clrChartFc}" font-size="12" font-weight="700" font-family="Inter">${T.forecastToday}: ${scToday>0?scToday.toFixed(1):'--'} kWh</text>`;
+      s+=`<text x="${cx2}" y="${cY-8}" text-anchor="middle" fill="rgba(72,209,255,.95)" font-size="12" font-weight="700" font-family="Inter">${T.forecastTmr}: ${scTmr>0?scTmr.toFixed(1):'--'} kWh</text>`;
+      // Legend
+      s+=`<circle cx="${cx2-52}" cy="${cY+8}" r="6" fill="${clrChartFc}"/>`;
+      s+=`<text x="${cx2-43}" y="${cY+12}" fill="${clrChartFc}" font-size="13" font-weight="800" font-family="Inter">${T.peakForecast}: ${peakW}W</text>`;
+      s+=`<circle cx="${cx2-52}" cy="${cY+25}" r="6" fill="${clrChartLive}"/>`;
+      s+=`<text x="${cx2-43}" y="${cY+29}" fill="${clrChartLive}" font-size="13" font-weight="800" font-family="Inter">${T.actualNow}: ${Math.round(liveW||0)}W</text>`;
+      // Grid lines
+      for(let gi=0;gi<=4;gi++){
+        const gy=cY+pT+gi*plotH/4;
+        const gw2=Math.round(maxW-gi*maxW/4);
+        s+=`<line x1="${cX+pL}" y1="${gy}" x2="${cX+pL+plotW}" y2="${gy}" stroke="rgba(255,255,255,.07)" stroke-width="1"/>`;
+        if(gi<4) s+=`<text x="${cX+pL-3}" y="${gy+3}" text-anchor="end" fill="rgba(255,255,255,.3)" font-size="7" font-family="Inter">${gw2>=1000?(gw2/1000).toFixed(1)+'k':gw2}</text>`;
+      }
+      // Forecast area + line
+      if(fcFill){
+        const fcRgba=clrChartFc.startsWith('#')?clrChartFc+'30':clrChartFc.replace(/,[\d.]+\)$/,',.18)');
+        s+=`<polygon points="${fcFill}" fill="${fcRgba}"/>`;
+        s+=`<polyline points="${fcPts}" fill="none" stroke="${clrChartFc}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+      }
+      // Live area + line
+      if(liveFill){
+        const lvRgba=clrChartLive.startsWith('#')?clrChartLive+'33':clrChartLive.replace(/,[\d.]+\)$/,',.2)');
+        s+=`<polygon points="${liveFill}" fill="${lvRgba}"/>`;
+        s+=`<polyline points="${livePts}" fill="none" stroke="${clrChartLive}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+      }
+      // Now marker
+      if(nowHour>=6&&nowHour<=18){
+        const nx=hToX(nowHour);
+        s+=`<line x1="${nx}" y1="${cY+pT}" x2="${nx}" y2="${cY+pT+plotH}" stroke="rgba(255,80,80,.6)" stroke-width="1" stroke-dasharray="2,3"/>`;
+      }
+      // X-axis hour labels
+      for(const xh of [6,12,18]){
+        const xx=hToX(xh),yy=cY+pT+plotH;
+        s+=`<line x1="${xx}" y1="${yy}" x2="${xx}" y2="${yy+4}" stroke="rgba(255,255,255,.25)" stroke-width="1"/>`;
+        s+=`<text x="${xx}" y="${yy+12}" text-anchor="middle" fill="rgba(255,255,255,.45)" font-size="9" font-family="Inter">${xh}h</text>`;
+      }
+      return s;
+    })();
 
     // Sky aura
     let r1,g1,b1,r2,g2,b2;
@@ -1487,7 +1887,7 @@ class SolarWeatherCard extends HTMLElement {
     else if(bPct<=20){bColor='linear-gradient(90deg,#dc2626,#ea580c,#f59e0b)';bGlow='rgba(245,158,11,.55)';}
     else{bColor='linear-gradient(90deg,#16a34a,#4ade80,#86efac)';bGlow='rgba(74,222,128,.5)';}
 
-    const tickMsg=T.ticker(wState,daily,savFmt,currency,bPct,isCharge,isDisch,battSoc);
+    const tickMsg=T.ticker(wState,daily,dailyuse,savFmtUse,currency,bPct,isCharge,isDisch,battSoc);
     const ticker2=tickMsg+'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'+tickMsg;
     const cell='background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:10px 6px;text-align:center;';
     const lbl='font-size:10px;color:rgba(255,255,255,.45);margin-top:2px;white-space:nowrap;';
@@ -1499,7 +1899,7 @@ class SolarWeatherCard extends HTMLElement {
 <style>:host{display:block}*{box-sizing:border-box;margin:0;padding:0}
 @keyframes scrollTicker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 </style>
-<div style="font-family:Inter,-apple-system,sans-serif;color:#fff;
+<div style="font-family:Inter,-apple-system,sans-serif;color:${clrTextPrim};
   background:${bg};backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
   border:1px solid rgba(255,255,255,.18);border-radius:24px;
   box-shadow:0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.20),inset 0 -1px 0 rgba(255,255,255,.05);
@@ -1509,7 +1909,7 @@ class SolarWeatherCard extends HTMLElement {
     <div style="display:grid;grid-template-columns:80px 1fr 40px;align-items:center;margin-bottom:12px;">
       <div>${condHTML}</div>
       <div style="text-align:center;">
-        <div style="font-size:80px;font-weight:800;line-height:1;letter-spacing:-3px;text-shadow:0 2px 20px rgba(255,255,255,.25);">${hh}:${mm}<span style="font-size:28px;font-weight:400;opacity:.55;margin-left:4px;">${ap}</span></div>
+        <div style="font-size:80px;font-weight:800;line-height:1;letter-spacing:-3px;text-shadow:0 2px 20px rgba(255,255,255,.25);"><span id="live-clock">${hh}:${mm}</span><span id="live-ap" style="font-size:28px;font-weight:400;opacity:.55;margin-left:4px;">${ap}</span></div>
         <div style="font-size:18px;color:rgba(255,255,255,.55);margin-top:3px;">${dateStr}</div>
       </div><div></div>
     </div>
@@ -1531,7 +1931,7 @@ class SolarWeatherCard extends HTMLElement {
     <div style="display:grid;grid-template-columns:80px 1fr 40px;align-items:center;">
       <div>${condHTML}</div>
       <div style="text-align:center;">
-        <div style="font-size:80px;font-weight:800;line-height:1;letter-spacing:-3px;text-shadow:0 2px 20px rgba(255,255,255,.25);">${hh}:${mm}<span style="font-size:28px;font-weight:400;opacity:.55;margin-left:4px;">${ap}</span></div>
+        <div style="font-size:80px;font-weight:800;line-height:1;letter-spacing:-3px;text-shadow:0 2px 20px rgba(255,255,255,.25);"><span id="live-clock">${hh}:${mm}</span><span id="live-ap" style="font-size:28px;font-weight:400;opacity:.55;margin-left:4px;">${ap}</span></div>
         <div style="font-size:16px;color:rgba(255,255,255,.55);margin-top:4px;">${dateStr}</div>
       </div>
       <div></div>
@@ -1579,6 +1979,7 @@ class SolarWeatherCard extends HTMLElement {
         ${moonSVG}
         ${FL}
         ${foBAT}${foINV}${foGRD}${foHOM}
+        ${showForecastChart?solarChartSVG:''}
       </svg>
     </div>
   </div>
@@ -1597,20 +1998,167 @@ class SolarWeatherCard extends HTMLElement {
       <div style="display:inline-block;animation:scrollTicker 22s linear infinite;font-size:12px;font-weight:600;color:rgba(255,230,120,.95);text-shadow:0 1px 6px rgba(0,0,0,.5);">${ticker2}</div>
     </div>
 
-    <div style="text-align:center;font-size:11px;font-weight:600;color:rgba(255,255,255,.35);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:8px;">${T.statsTitle}</div>
+    ${(()=>{
+      // ── Stats circles SVG (design from v1.6 YAML) ──────────
+      const solarPct=parseFloat(dailyuse)+parseFloat(gridDaily)>0?Math.round(parseFloat(dailyuse)/(parseFloat(dailyuse)+parseFloat(gridDaily))*100):0;
+      const gridPct=100-solarPct;
+      const angRad=gridPct/100*2*Math.PI;
+      const pieX=(542+100*Math.sin(angRad)).toFixed(2);
+      const pieY=(110-100*Math.cos(angRad)).toFixed(2);
+      const largeArcG=gridPct>50?'1':'0';
+      const largeArcS=solarPct>50?'1':'0';
+      const luxState2=this._g('inverter_status_entity','--');
+      const invTemp2=this._gf('inverter_temp_entity',0).toFixed(1);
+      const batTemp2=this._gf('battery_temp_entity',0).toFixed(1);
+      const isOff2=['--','unavailable','unknown','Unavailable'].includes(luxState2);
+      const isNormal2=['Normal','normal','online','Online','ONLINE'].includes(luxState2);
+      const stColor2=isNormal2?'#4ade80':isOff2?'#ff5050':'#ffc83c';
+      const stLabel2=isOff2?'OFFLINE':(isNormal2?'ONLINE':luxState2);
+      // Saving from dailyuse (solar used by home)
+      const savCalc=savFmtUse+currency;
 
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;">
-      <div style="${cell}"><div style="${ico}">☀️</div><div style="${val}">${daily} kWh</div><div style="${lbl}">${T.solarStat}</div></div>
-      <div style="${cell}"><div style="${ico}">🔌</div><div style="${val}">${gridDaily} kWh</div><div style="${lbl}">${T.gridStat}</div></div>
-      <div style="${cell}"><div style="${ico}">🏠</div><div style="${val}">${combinedFmt} kWh</div><div style="${lbl}">${T.consumeStat}</div></div>
-      <div style="${cell}"><div style="${ico}">💰</div><div style="${val}">${savFmt}${currency}</div><div style="${lbl}">${T.savingStat}</div></div>
-      <div style="background:${isOff?'rgba(80,10,10,.45)':'rgba(255,255,255,.10)'};${isOff?'border:1.5px solid rgba(255,80,80,.8);box-shadow:0 0 8px rgba(255,80,80,.4)':'border:1px solid rgba(255,255,255,.15)'};border-radius:12px;padding:8px 6px;text-align:center;">
-        <div style="font-size:9px;font-weight:700;color:rgba(100,210,255,.85);margin-bottom:4px;letter-spacing:.5px;white-space:nowrap;">${T.systemStat}</div>
-        <div style="font-size:12px;font-weight:800;color:${stColor};margin-bottom:4px;">❤️ ${stLabel}</div>
-        <div style="font-size:10px;color:rgba(255,200,80,.9);margin-bottom:2px;white-space:nowrap;">🌡️ ${invTemp}°C</div>
-        <div style="font-size:10px;color:rgba(80,200,255,.9);white-space:nowrap;">🔋 ${batTemp}°C</div>
-      </div>
-    </div>
+      return `<style>@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@600;700&display=swap");</style>
+<svg style="display:block;width:100%;height:auto" viewBox="-7 5 1090 220" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <radialGradient id="gSav" cx="40%" cy="35%" r="65%"><stop offset="0%" stop-color="#0a2e12"/><stop offset="55%" stop-color="#051808"/><stop offset="100%" stop-color="#020c04"/></radialGradient>
+  <radialGradient id="gS"   cx="40%" cy="35%" r="65%"><stop offset="0%" stop-color="#3d2200"/><stop offset="55%" stop-color="#1c0f00"/><stop offset="100%" stop-color="#0e0800"/></radialGradient>
+  <radialGradient id="gG"   cx="60%" cy="35%" r="65%"><stop offset="0%" stop-color="#0c2050"/><stop offset="55%" stop-color="#060e28"/><stop offset="100%" stop-color="#030812"/></radialGradient>
+  <radialGradient id="gCi"  cx="42%" cy="38%" r="62%"><stop offset="0%" stop-color="#2a1800"/><stop offset="100%" stop-color="#0a0600"/></radialGradient>
+  <radialGradient id="pA"   cx="20%" cy="70%" r="85%"><stop offset="0%" stop-color="#d49000"/><stop offset="45%" stop-color="#8a5800"/><stop offset="100%" stop-color="#3c2800"/></radialGradient>
+  <radialGradient id="pB"   cx="80%" cy="20%" r="85%"><stop offset="0%" stop-color="#1060c0"/><stop offset="50%" stop-color="#0a1e60"/><stop offset="100%" stop-color="#050a25"/></radialGradient>
+  <radialGradient id="gSys" cx="40%" cy="35%" r="65%"><stop offset="0%" stop-color="#1a0a2e"/><stop offset="55%" stop-color="#0d0518"/><stop offset="100%" stop-color="#06020c"/></radialGradient>
+  <clipPath id="cSav"><circle cx="96"  cy="110" r="102"/></clipPath>
+  <clipPath id="cS">  <circle cx="320" cy="110" r="98"/></clipPath>
+  <clipPath id="cC">  <circle cx="544" cy="110" r="110"/></clipPath>
+  <clipPath id="cG">  <circle cx="768" cy="110" r="98"/></clipPath>
+  <clipPath id="cSys"><circle cx="980" cy="110" r="102"/></clipPath>
+</defs>
+<!-- BG circles -->
+<circle cx="96"  cy="110" r="102" fill="url(#gSav)"/>
+<circle cx="320" cy="110" r="98"  fill="url(#gS)"/>
+<circle cx="768" cy="110" r="98"  fill="url(#gG)"/>
+<circle cx="980" cy="110" r="102" fill="url(#gSys)"/>
+<!-- connector shapes -->
+<path d="M 408,82 C 420,82 426,90 432,92 C 438,94 442,94 444,94 L 444,126 C 442,126 438,126 432,128 C 426,130 420,138 408,138 Z" fill="#111010" opacity="0.95"/>
+<path d="M 406,56 C 418,62 426,76 432,90 C 436,98 440,98 443,98"       fill="none" stroke="#c88000" stroke-width="2.4" stroke-linecap="round"/>
+<path d="M 406,164 C 418,158 426,144 432,130 C 436,122 440,122 443,122" fill="none" stroke="#c88000" stroke-width="2.4" stroke-linecap="round"/>
+<path d="M 680,82 C 668,82 661,90 655,92 C 649,94 646,94 644,94 L 644,126 C 646,126 649,126 655,128 C 661,130 668,138 680,138 Z" fill="#080c18" opacity="0.95"/>
+<!-- borders -->
+<circle cx="96"  cy="110" r="104" fill="none" stroke="rgba(30,180,60,0.18)"  stroke-width="7"/>
+<circle cx="96"  cy="110" r="102" fill="none" stroke="#1a7a30" stroke-width="2.4"/>
+<circle cx="320" cy="110" r="100" fill="none" stroke="rgba(210,145,0,0.18)"  stroke-width="7"/>
+<circle cx="320" cy="110" r="98"  fill="none" stroke="#c88000" stroke-width="2.4"/>
+<circle cx="544" cy="110" r="105" fill="none" stroke="rgba(200,145,0,0.18)"  stroke-width="7"/>
+<circle cx="768" cy="110" r="100" fill="none" stroke="rgba(15,60,200,0.20)"  stroke-width="7"/>
+<circle cx="768" cy="110" r="98"  fill="none" stroke="#1e50b8" stroke-width="2.4"/>
+<circle cx="980" cy="110" r="104" fill="none" stroke="rgba(120,50,220,0.18)" stroke-width="7"/>
+<circle cx="980" cy="110" r="102" fill="none" stroke="#7c3aed" stroke-width="2.4"/>
+<!-- Pie chart center -->
+<path d="M542,110 L542,10 A100,100 0 ${largeArcG} 1 ${pieX} ${pieY} Z" fill="url(#pB)" clip-path="url(#cC)"/>
+<path d="M542,110 L542,10 A100,100 0 ${largeArcS} 0 ${pieX} ${pieY} Z" fill="url(#pA)" clip-path="url(#cC)"/>
+<line x1="542" y1="110" x2="542"      y2="10"       stroke="rgba(0,0,0,0.80)" stroke-width="1.8" clip-path="url(#cC)"/>
+<line x1="542" y1="110" x2="${pieX}"  y2="${pieY}"   stroke="rgba(0,0,0,0.80)" stroke-width="1.8" clip-path="url(#cC)"/>
+<circle cx="544" cy="110" r="100" fill="none" stroke="#a07800" stroke-width="2.4"/>
+<path d="M 683,56 C 671,62 663,76 657,90 C 653,98 649,98 645,98"       fill="none" stroke="#1e50b8" stroke-width="2.4" stroke-linecap="round"/>
+<path d="M 683,164 C 671,158 663,144 657,130 C 653,122 649,122 645,122" fill="none" stroke="#1e50b8" stroke-width="2.4" stroke-linecap="round"/>
+<circle cx="544" cy="110" r="75" fill="url(#gCi)"/>
+<circle cx="544" cy="110" r="75" fill="none" stroke="rgba(180,130,0,0.45)" stroke-width="1.5"/>
+<!-- Saving circle -->
+<g clip-path="url(#cSav)">
+  <g transform="translate(62,14)">
+    <ellipse cx="34" cy="58" rx="27" ry="25" fill="rgba(30,140,60,0.22)" stroke="#1a7a30" stroke-width="2"/>
+    <path d="M21,40 Q25,32 34,32 Q43,32 47,40" fill="none" stroke="#1a7a30" stroke-width="2" stroke-linecap="round"/>
+    <ellipse cx="34" cy="38" rx="6" ry="4" fill="rgba(30,160,70,0.4)" stroke="#1a7a30" stroke-width="1.6"/>
+    <ellipse cx="23" cy="58" rx="8" ry="4.5" fill="rgba(212,170,0,0.65)" stroke="#d4aa00" stroke-width="1.5"/>
+    <text x="23" y="60.5" font-family="Arial" font-size="5.5" font-weight="900" fill="rgba(255,240,0,0.9)" text-anchor="middle">$</text>
+    <ellipse cx="45" cy="58" rx="8" ry="4.5" fill="rgba(212,170,0,0.62)" stroke="#d4aa00" stroke-width="1.5"/>
+    <text x="45" y="60.5" font-family="Arial" font-size="5.5" font-weight="900" fill="rgba(255,240,0,0.9)" text-anchor="middle">$</text>
+    <ellipse cx="34" cy="46" rx="8" ry="4.5" fill="rgba(212,170,0,0.60)" stroke="#d4aa00" stroke-width="1.5"/>
+    <text x="34" y="48.5" font-family="Arial" font-size="5.5" font-weight="900" fill="rgba(255,240,0,0.95)" text-anchor="middle">$</text>
+  </g>
+  <text x="96" y="135" font-family="Orbitron,monospace" font-size="36" font-weight="900" fill="#4ade80" text-anchor="middle">${savFmtUse}<tspan font-size="28" fill="rgba(74,222,128,0.85)">${currency}</tspan></text>
+  <text x="96" y="174" font-family="Rajdhani,sans-serif" font-size="26" font-weight="700" fill="rgba(74,222,128,0.92)" text-anchor="middle" letter-spacing="1">Save</text>
+</g>
+<!-- Solar produced circle -->
+<g clip-path="url(#cS)">
+  <g transform="translate(288,32)">
+    <rect x="0" y="0" width="64" height="44" rx="3" fill="rgba(180,110,0,0.15)" stroke="#c88000" stroke-width="2" opacity="0.9"/>
+    <line x1="21.3" y1="0" x2="21.3" y2="44" stroke="#c88000" stroke-width="1.1" opacity="0.6"/>
+    <line x1="42.7" y1="0" x2="42.7" y2="44" stroke="#c88000" stroke-width="1.1" opacity="0.6"/>
+    <line x1="0" y1="14.7" x2="64" y2="14.7" stroke="#c88000" stroke-width="1.1" opacity="0.6"/>
+    <line x1="0" y1="29.3" x2="64" y2="29.3" stroke="#c88000" stroke-width="1.1" opacity="0.6"/>
+    <rect x="1.5" y="1.5" width="18.8" height="12.2" rx="1.5" fill="#c88000" opacity="0.30"/>
+    <rect x="22.8" y="1.5" width="18.8" height="12.2" rx="1.5" fill="#c88000" opacity="0.20"/>
+    <rect x="44.2" y="1.5" width="18.8" height="12.2" rx="1.5" fill="#c88000" opacity="0.30"/>
+    <rect x="1.5" y="16.2" width="18.8" height="12.2" rx="1.5" fill="#c88000" opacity="0.18"/>
+    <rect x="22.8" y="16.2" width="18.8" height="12.2" rx="1.5" fill="#c88000" opacity="0.28"/>
+    <rect x="44.2" y="16.2" width="18.8" height="12.2" rx="1.5" fill="#c88000" opacity="0.18"/>
+    <rect x="1.5" y="30.8" width="18.8" height="12.2" rx="1.5" fill="#c88000" opacity="0.30"/>
+    <rect x="22.8" y="30.8" width="18.8" height="12.2" rx="1.5" fill="#c88000" opacity="0.20"/>
+    <rect x="44.2" y="30.8" width="18.8" height="12.2" rx="1.5" fill="#c88000" opacity="0.30"/>
+    <line x1="32" y1="44" x2="32" y2="54" stroke="#c88000" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+    <line x1="18" y1="54" x2="46" y2="54" stroke="#c88000" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+    <line x1="18" y1="54" x2="11" y2="61" stroke="#c88000" stroke-width="2"   stroke-linecap="round" opacity="0.6"/>
+    <line x1="46" y1="54" x2="53" y2="61" stroke="#c88000" stroke-width="2"   stroke-linecap="round" opacity="0.6"/>
+  </g>
+  <text x="320" y="135" font-family="Orbitron,monospace" font-size="36" font-weight="900" fill="#ffc200" text-anchor="middle">${dailyuse}<tspan font-size="20" fill="rgba(255,194,0,0.85)" dx="2">kWh</tspan></text>
+  <text x="320" y="174" font-family="Rajdhani,sans-serif" font-size="26" font-weight="700" fill="rgba(255,175,0,0.92)" text-anchor="middle" letter-spacing="1">${T.solarProduced}</text>
+</g>
+<!-- Pie labels -->
+<text x="440" y="178" font-family="Rajdhani,sans-serif" font-size="25" font-weight="700" fill="#FFFFFF" text-anchor="middle">${solarPct}%</text>
+<text x="445" y="200" font-family="Rajdhani,sans-serif" font-size="22" font-weight="600" fill="rgba(250,235,200,0.95)" text-anchor="middle">Solar</text>
+<text x="645" y="45"  font-family="Rajdhani,sans-serif" font-size="25" font-weight="700" fill="#FFFFFF" text-anchor="middle">${gridPct}%</text>
+<text x="652" y="65"  font-family="Rajdhani,sans-serif" font-size="22" font-weight="600" fill="rgba(72,118,255,0.95)" text-anchor="middle">Grid</text>
+<!-- Home icon center pie -->
+<g transform="translate(520,52)" fill="none" stroke="#c88000" stroke-width="1.9" stroke-linejoin="round" opacity="0.92">
+  <polyline points="24,0 1,17 6,17 6,38 42,38 42,17 47,17 24,0"/>
+  <rect x="15" y="23" width="10" height="15" rx="1.5"/>
+  <path d="M27 11 l-6 10 h5 l-4 10 11-14 h-6 z" fill="#ffd700" stroke="none" opacity="0.95"/>
+</g>
+<!-- Consumption center -->
+<text x="555" y="143" font-family="Orbitron,monospace" font-size="36" font-weight="900" fill="#ff9500" text-anchor="middle">${combinedFmt}<tspan font-size="18" fill="rgba(255,149,0,0.85)" dx="2">kWh</tspan></text>
+<text x="544" y="192" font-family="Rajdhani,sans-serif" font-size="20" font-weight="700" fill="rgba(235,195,75,0.92)" text-anchor="middle">Daily used</text>
+<!-- Grid circle -->
+<g clip-path="url(#cG)">
+  <g transform="translate(738,24)" stroke="#4da8ff" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <line x1="30" y1="2"  x2="30" y2="76" stroke-width="2.5" opacity="0.9"/>
+    <line x1="5"  y1="18" x2="55" y2="18" stroke-width="2.2" opacity="0.9"/>
+    <line x1="11" y1="34" x2="49" y2="34" stroke-width="2"   opacity="0.85"/>
+    <line x1="17" y1="50" x2="43" y2="50" stroke-width="1.8" opacity="0.8"/>
+    <line x1="30" y1="2"  x2="5"  y2="18" stroke-width="1.5" opacity="0.7"/>
+    <line x1="30" y1="2"  x2="55" y2="18" stroke-width="1.5" opacity="0.7"/>
+    <line x1="5"  y1="18" x2="11" y2="34" stroke-width="1.3" opacity="0.6"/>
+    <line x1="55" y1="18" x2="49" y2="34" stroke-width="1.3" opacity="0.6"/>
+    <line x1="11" y1="34" x2="17" y2="50" stroke-width="1.2" opacity="0.55"/>
+    <line x1="49" y1="34" x2="43" y2="50" stroke-width="1.2" opacity="0.55"/>
+    <line x1="30" y1="76" x2="16" y2="88" stroke-width="2.2" opacity="0.8"/>
+    <line x1="30" y1="76" x2="44" y2="88" stroke-width="2.2" opacity="0.8"/>
+    <line x1="12" y1="88" x2="20" y2="88" stroke-width="2"   opacity="0.7"/>
+    <line x1="40" y1="88" x2="48" y2="88" stroke-width="2"   opacity="0.7"/>
+    <circle cx="5"  cy="18" r="3.5" fill="#4da8ff" stroke="none" opacity="0.95"/>
+    <circle cx="55" cy="18" r="3.5" fill="#4da8ff" stroke="none" opacity="0.95"/>
+    <circle cx="11" cy="34" r="3"   fill="#4da8ff" stroke="none" opacity="0.85"/>
+    <circle cx="49" cy="34" r="3"   fill="#4da8ff" stroke="none" opacity="0.85"/>
+    <circle cx="17" cy="50" r="2.5" fill="#4da8ff" stroke="none" opacity="0.75"/>
+    <circle cx="43" cy="50" r="2.5" fill="#4da8ff" stroke="none" opacity="0.75"/>
+  </g>
+  <text x="768" y="142" font-family="Orbitron,monospace" font-size="36" font-weight="900" fill="#4da8ff" text-anchor="middle">${gridDaily}<tspan font-size="20" fill="rgba(77,168,255,0.85)">kWh</tspan></text>
+  <text x="768" y="174" font-family="Rajdhani,sans-serif" font-size="26" font-weight="700" fill="rgba(77,168,255,0.92)" text-anchor="middle" letter-spacing="1">Grid</text>
+</g>
+<!-- System circle -->
+<g clip-path="url(#cSys)">
+  <text x="980" y="46"  font-family="Rajdhani,sans-serif" font-size="20" font-weight="700" fill="rgba(180,140,255,0.85)" text-anchor="middle" letter-spacing="1.5">System</text>
+  <text x="980" y="72"  font-family="Orbitron,monospace"  font-size="22" font-weight="800" fill="${stColor2}" text-anchor="middle">${stLabel2}</text>
+  <line x1="938" y1="82" x2="1022" y2="82" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+  <text x="980" y="102" font-family="Rajdhani,sans-serif" font-size="20" font-weight="600" fill="rgba(255,200,80,0.85)" text-anchor="middle">Inverter</text>
+  <text x="980" y="128" font-family="Orbitron,monospace"  font-size="24" font-weight="700" fill="rgba(255,200,80,1)"    text-anchor="middle">${invTemp2}°C</text>
+  <line x1="938" y1="134" x2="1022" y2="134" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <text x="980" y="156" font-family="Rajdhani,sans-serif" font-size="20" font-weight="600" fill="rgba(80,200,255,0.85)" text-anchor="middle">Battery</text>
+  <text x="980" y="182" font-family="Orbitron,monospace"  font-size="24" font-weight="700" fill="rgba(80,200,255,1)"   text-anchor="middle">${batTemp2}°C</text>
+</g>
+</svg>`;
+    })()}
+
   </div>
 </div>`;
   }
