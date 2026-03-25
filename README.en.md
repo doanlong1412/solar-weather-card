@@ -1,7 +1,7 @@
 # ☀️ Solar Weather Card
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-![version](https://img.shields.io/badge/version-1.5.1-blue)
+![version](https://img.shields.io/badge/version-1.6.0-blue)
 ![HA](https://img.shields.io/badge/Home%20Assistant-2023.1+-green)
 ![license](https://img.shields.io/badge/license-MIT-lightgrey)
 
@@ -19,7 +19,7 @@ A custom Home Assistant card that displays your complete solar energy system —
 
 ---
 
-## ✨ Features (v1.5.1)
+## ✨ Features (v1.6.0)
 
 ### 🎨 Display & Interface
 - 🕐 **Live clock & date**, auto-updates every 30 seconds — weather icon always visible even when info panel is hidden
@@ -31,7 +31,7 @@ A custom Home Assistant card that displays your complete solar energy system —
 
 ### ⚡ Energy Flow (3 styles)
 - **✦ Particle** — bubbles travel along Bézier curves with glow and highlight sparkles
-- **〰️ Wave** — sine wave + dust particles + bright dots (new in v1.5)
+- **〰️ Wave** — sine wave + dust particles + bright dots
 - **── Line** — animated dashed stroke
 
 ### 🏗️ Node Cards (Battery, Inverter, Grid, Home)
@@ -41,6 +41,21 @@ A custom Home Assistant card that displays your complete solar energy system —
 ### 🔋 Battery
 - Colour-coded bar: 🟢 green (>20%) → 🟡 amber (10–20%) → 🔴 red (≤10%)
 - **Charge / discharge ETA** — supports Ah sensors (LuxPower) × live voltage
+
+### 📊 Solar Forecast Chart *(New v1.6)*
+- 🟡 **Yellow line** — actual solar output recorded hour by hour throughout the day
+- 🟢 **Green line** — detailed Solcast hourly forecast (if Solcast is installed)
+- 🔵 **Blue line** — formula-based forecast using sun position + cloud coverage (auto-fallback)
+- **Today / tomorrow totals** shown directly on the chart
+- Fully **toggleable** in the Visual Editor (`show_forecast_chart`) — positioned just below the Node glow effect toggle
+
+### 🎨 Colour Customisation *(New v1.6)*
+- **Node border / glow colour** for each node: Battery, Grid, Inverter, Home
+- **Flow / particle colour** per path: Solar, Grid, Battery, Home
+- **Chart line colours**: forecast curve and live/actual curve independently
+- **Primary text colour** across the entire card
+- **Reset to defaults** button — restores all colours to their original values in one click
+- All settings available in the **🎨 Color Theme** accordion in the Visual Editor
 
 ### 📊 Stats & System
 - 5-cell stats bar: Solar / From Grid / Consume / Saving / System
@@ -125,8 +140,29 @@ The Config Editor is divided into **accordion sections** — click any header to
 | `show_weather_info` | `true` / `false` | `true` | Show/hide full weather info panel |
 | `show_tomorrow` | `true` / `false` | `true` | Show/hide tomorrow's forecast |
 | `show_node_glow` | `true` / `false` | `true` | Enable/disable node glow effect |
+| `show_forecast_chart` | `true` / `false` | `true` | Show/hide solar forecast chart *(New v1.6)* |
 | `currency` | any symbol | `đ` | Currency symbol for savings display |
 | `pricing_tiers` | see below | Vietnam EVN | Custom electricity pricing tiers |
+
+---
+
+### Colour options *(New v1.6)*
+
+All colour options are available via the **🎨 Color Theme** accordion in the Visual Editor using visual colour pickers. You can also set them directly in YAML:
+
+| Config key | Default | Description |
+|---|---|---|
+| `color_node_bat` | `#28e6a0` | Battery node border colour |
+| `color_node_grd` | `#00d7ff` | Grid node border colour |
+| `color_node_inv` | `#b991ff` | Inverter node border colour |
+| `color_node_hom` | `#ffb228` | Home node border colour |
+| `color_flow_solar` | `#ffe83c` | Solar flow particle/wave colour |
+| `color_flow_grid` | `#50beff` | Grid flow particle/wave colour |
+| `color_flow_batt` | `#3ce878` | Battery flow particle/wave colour |
+| `color_flow_home` | `#ff941d` | Home flow particle/wave colour |
+| `color_chart_fc` | `#f5a623` | Forecast line colour on the chart |
+| `color_chart_live` | `#7ed321` | Live/actual line colour on the chart |
+| `color_text_primary` | `#ffffff` | Primary text colour across the card |
 
 ---
 
@@ -146,9 +182,147 @@ Format: `limit_kWh:rate` comma-separated. Use `∞` or `inf` for the final tier.
 
 ---
 
-### Available entities
+## 📊 Solar Forecast Chart Setup Guide *(New v1.6)*
 
-#### ☁️ Weather & Environment
+The chart appears directly below the energy flow node area and shows:
+
+- 🟡 **Yellow line** — actual solar output recorded each hour of the day
+- 🟢 **Green line** — detailed Solcast hourly forecast (if Solcast is installed)
+- 🔵 **Blue line** — formula-based prediction using sun position + cloud coverage (auto-fallback)
+
+> The chart **automatically selects the best available data source** — Solcast is not required.
+> Toggle it on/off with `📊 Show solar forecast chart` in the **Display Options** section of the Visual Editor.
+
+---
+
+### Option 1 — Use Solcast (recommended — most accurate forecast)
+
+**Solcast** is a free integration that provides hourly solar production forecasts based on your geographic location and system parameters.
+
+📦 **Install from:** [ha-solcast-solar](https://github.com/BJReplay/ha-solcast-solar) — by **[@BJReplay](https://github.com/BJReplay)**
+
+After installing and configuring Solcast, add these entities to your card:
+
+| Config key | Solcast entity | Description |
+|---|---|---|
+| `solcast_today_entity` | `sensor.solcast_pv_forecast_forecast_today` | Today's total forecast (kWh) |
+| `solcast_tomorrow_entity` | `sensor.solcast_pv_forecast_forecast_tomorrow` | Tomorrow's total forecast (kWh) |
+| `solcast_detail_entity` | `sensor.solcast_pv_forecast_forecast_today` | Hourly detail forecast (via attributes) |
+
+> 💡 The card reads the `detailedForecast` or `forecast` attribute (a list of hourly values) and draws the green curve automatically.
+
+---
+
+### Option 2 — Use a formula sensor (no Solcast needed)
+
+If you haven't installed Solcast, you can create a calculated sensor based on sun position and cloud coverage as a forecast fallback.
+
+#### Step 1 — Create an `input_text` to store hourly real data
+
+**Option A — Via UI (easiest):**
+
+Go to **Settings → Devices & Services → Helpers → Add Helper → Text** and name it `solar_live_curve`.
+
+**Option B — Via YAML:**
+
+Add to `configuration.yaml`:
+
+```yaml
+input_text:
+  solar_live_curve:
+    name: "Solar Live Curve"
+    max: 255
+    mode: text
+```
+
+Then restart Home Assistant.
+
+---
+
+#### Step 2 — Create the forecast sensor and recording automation
+
+Add to `configuration.yaml`:
+
+```yaml
+template:
+  - sensor:
+      - name: "Solar Forecast Now"
+        unique_id: solar_forecast_now
+        unit_of_measurement: "W"
+        state_class: measurement
+        device_class: power
+        state: >
+          {% set h = now().hour + now().minute / 60 %}
+          {% set cloud = state_attr('weather.YOUR_WEATHER_ENTITY', 'cloud_coverage') | float(50) %}
+          {% set sun = [0, (3.14159 * (h - 5.5) / 13) | sin] | max %}
+          {{ (sun * 8000 * (1 - cloud / 100) * 0.85) | round(0) | int }}
+
+automation:
+  - alias: "Solar Live Curve - Record actual output hourly"
+    trigger:
+      - platform: time_pattern
+        hours: "/1"
+        minutes: "0"
+      - platform: homeassistant
+        event: start
+    action:
+      - variables:
+          live_w: "{{ states('sensor.YOUR_SOLAR_ENTITY') | float(0) | round(0) | int }}"
+          live_h: "{{ now().hour }}"
+          old_curve: "{{ states('input_text.solar_live_curve') }}"
+      - variables:
+          new_point: "{{ live_h }}:{{ live_w }}"
+          new_curve: >
+            {% set is_morning = live_h | int == 6 %}
+            {% set is_empty = old_curve in ['unknown','unavailable',''] %}
+            {% if is_morning %}
+              {{ new_point }}
+            {% elif is_empty %}
+              {{ new_point }}
+            {% else %}
+              {{ old_curve }},{{ new_point }}
+            {% endif %}
+      - service: input_text.set_value
+        target:
+          entity_id: input_text.solar_live_curve
+        data:
+          value: "{{ new_curve }}"
+    sensor:
+      - name: "Solar Live Dummy"
+        unique_id: solar_live_dummy
+        state: "OK"
+```
+
+> ⚠️ **Replace before using:**
+> - `weather.YOUR_WEATHER_ENTITY` → your weather entity (e.g. `weather.forecast_home`)
+> - `sensor.YOUR_SOLAR_ENTITY` → your actual solar power sensor (e.g. `sensor.lux_solar_output_live`)
+> - `8000` → your system's peak output in W (e.g. 10 kWp system → `10000`)
+
+---
+
+#### Step 3 — Add the entity to your card
+
+```yaml
+solcast_detail_entity: sensor.solar_forecast_now
+```
+
+The card will detect this as a formula sensor and draw the appropriate forecast curve.
+
+---
+
+### Setup summary
+
+| Scenario | What to do |
+|---|---|
+| Just want a basic chart | Enable `show_forecast_chart: true` — card draws using available data |
+| Want weather-accurate forecast | Create `sensor.solar_forecast_now` + add to `solcast_detail_entity` |
+| Best accuracy + hourly actuals | Install Solcast + create the `input_text.solar_live_curve` automation |
+
+---
+
+## Available entities
+
+### ☁️ Weather & Environment
 
 | Config key | Description | Required |
 |---|---|:---:|
@@ -159,7 +333,7 @@ Format: `limit_kWh:rate` comma-separated. Use `∞` or `inf` for the final tier.
 | `uv_entity` | UV index sensor | |
 | `rain_entity` | Rain forecast text sensor | |
 
-#### ⚡ Solar
+### ⚡ Solar
 
 | Config key | Description | Required |
 |---|---|:---:|
@@ -168,8 +342,11 @@ Format: `limit_kWh:rate` comma-separated. Use `∞` or `inf` for the final tier.
 | `solar_pv1_voltage_entity` | Array 1 DC voltage (V) | |
 | `solar_pv2_voltage_entity` | Array 2 DC voltage (V) | |
 | `solar_today_entity` | Solar generation today (kWh) | |
+| `solcast_today_entity` | Solcast forecast today (kWh) | |
+| `solcast_tomorrow_entity` | Solcast forecast tomorrow (kWh) | |
+| `solcast_detail_entity` | Solcast hourly detail or formula sensor | |
 
-#### 🔋 Battery
+### 🔋 Battery
 
 | Config key | Description | Required |
 |---|---|:---:|
@@ -182,7 +359,7 @@ Format: `limit_kWh:rate` comma-separated. Use `∞` or `inf` for the final tier.
 
 > 💡 **ETA priority:** Manual Wh → Sensor Ah × Voltage → Default 560 Ah × 48 V
 
-#### 🔌 Grid & Home
+### 🔌 Grid & Home
 
 | Config key | Description | Required |
 |---|---|:---:|
@@ -194,7 +371,7 @@ Format: `limit_kWh:rate` comma-separated. Use `∞` or `inf` for the final tier.
 | `inverter_switch_entity` | Inverter switch entity (grid-direct mode) | |
 | `grid_direct_entity` | Grid-direct power when inverter is off (W) | |
 
-#### ⚙️ System & Stats
+### ⚙️ System & Stats
 
 | Config key | Description | Required |
 |---|---|:---:|
@@ -203,7 +380,7 @@ Format: `limit_kWh:rate` comma-separated. Use `∞` or `inf` for the final tier.
 
 ---
 
-### Full YAML example (LuxPower + Seplos BMS)
+## Full YAML example (LuxPower + Seplos BMS + Solcast)
 
 ```yaml
 type: custom:solar-weather-card
@@ -213,6 +390,7 @@ background_opacity: 45
 show_weather_info: true
 show_tomorrow: true
 show_node_glow: true
+show_forecast_chart: true
 currency: đ
 
 weather_entity: weather.forecast_home
@@ -226,6 +404,11 @@ solar_pv1_entity: sensor.lux_solar_output_array_1_live
 solar_pv2_entity: sensor.lux_solar_output_array_2_live
 solar_pv1_voltage_entity: sensor.lux_solar_voltage_array_1_live
 solar_pv2_voltage_entity: sensor.lux_solar_voltage_array_2_live
+solar_today_entity: sensor.solar_today_kwh
+
+solcast_today_entity: sensor.solcast_pv_forecast_forecast_today
+solcast_tomorrow_entity: sensor.solcast_pv_forecast_forecast_tomorrow
+solcast_detail_entity: sensor.solcast_pv_forecast_forecast_today
 
 battery_soc_entity: sensor.lux_battery
 battery_flow_entity: sensor.lux_battery_flow_live
@@ -237,7 +420,6 @@ grid_voltage_entity: sensor.lux_grid_voltage_live
 grid_today_entity: sensor.lux_power_from_grid_daily
 
 home_consumption_entity: sensor.lux_home_consumption_live
-solar_today_entity: sensor.solar_today_kwh
 consumption_today_entity: sensor.consumption_today_kwh
 
 inverter_status_entity: sensor.luxpower
@@ -275,6 +457,15 @@ battery_temp_entity: sensor.bms_temperature
 ---
 
 ## 📋 Changelog
+
+### v1.6.0
+- 📊 **Solar Forecast Chart** — actual hourly line + Solcast/formula forecast curve
+- 🔌 **Solcast integration** — reads detailed hourly forecast from [ha-solcast-solar](https://github.com/BJReplay/ha-solcast-solar) by **@BJReplay**
+- 🧮 **Formula sensor fallback** — forecast based on sun arc + cloud coverage when Solcast is unavailable
+- 📝 **Hourly recording automation** — logs real solar output each hour into `input_text.solar_live_curve`
+- 🎛️ **Chart visibility toggle** — `show_forecast_chart` in the Visual Editor, positioned below Node glow effect
+- ⚡ **Solar design capacity** (`solar_design_wp`) — enter your system's Wp so the chart Y-axis scales accurately to your installation
+- 🎨 **Color Theme** — customise node borders, flow/particle colours, chart line colours, and primary text colour; one-click Reset to defaults
 
 ### v1.5.1
 - 🌤️ Weather icon always visible alongside clock even when `show_weather_info` is off
@@ -318,3 +509,5 @@ If you find this useful, please ⭐ **star the repo**!
 ## 🙏 Credits
 
 Designed and developed by **[@doanlong1412](https://github.com/doanlong1412)** from 🇻🇳 Vietnam.
+
+Solcast forecast integration powered by [ha-solcast-solar](https://github.com/BJReplay/ha-solcast-solar) — by **[@BJReplay](https://github.com/BJReplay)**.
