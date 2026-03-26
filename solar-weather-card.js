@@ -57,7 +57,20 @@
  *Chart visibility toggle** — `show_forecast_chart` in the Visual Editor, positioned below Node glow effect
  *Solar design capacity** (`solar_design_wp`) — enter your system's Wp so the chart Y-axis scales accurately to your installation
  *Color Theme** — customise node borders, flow/particle colours, chart line colours, and primary text colour; one-click Reset to defaults
-
+ *
+ * v1.7.0
+ *Solar Forecast Chart** — actual hourly line + Solcast/formula forecast curve
+ *Solcast integration** — reads detailed hourly forecast from [ha-solcast-solar](https://github.com/BJReplay/ha-solcast-solar) by **@BJReplay**
+ *Formula sensor fallback** — forecast based on sun arc + cloud coverage when Solcast is unavailable
+ *Hourly recording automation** — logs real solar output each hour into `input_text.solar_live_curve`
+ *Bar chart** — Actual / Forecast Today / Forecast Tomorrow kWh bars left of Home node
+ *Chart visibility toggle** — `show_forecast_chart` in the Visual Editor
+ *Hourly forecast strip** — `show_hourly_forecast` toggle; strip always visible when show_tomorrow is off
+ *Solar design capacity** (`solar_design_wp`) — enter your system's Wp so the chart Y-axis scales accurately
+ *Minimal mode** — `minimal_mode` kills all animations (node float, glow pulse, particles→dashes, sun pulse, scroll ticker)
+ *Background gradient presets** — 7 built-in presets + custom CSS gradient input
+ *Node Y-axis controls** — `node_inv_y` and `node_hom_y` sliders in Node Layout
+ *Color Theme** — customise node borders, flow/particle colours, chart line colours, and primary text colour; one-click Reset
  */
 
 // ═══════════════════════════════════════════════════════════════
@@ -296,7 +309,7 @@ class SolarWeatherCardEditor extends HTMLElement {
         {k:'humidity_entity',          l:'💧 Outdoor humidity (%)',          r:true,  domain:'sensor'},
         {k:'pressure_entity',          l:'🌬️ Atmospheric pressure (hPa)',    r:false, domain:'sensor'},
         {k:'uv_entity',                l:'☀️ UV index',                      r:false, domain:'sensor'},
-        {k:'rain_entity',              l:'🌧️ Rain forecast sensor',          r:false, domain:'sensor'},
+        {k:'hourly_forecast_entity',   l:'🕐 Hourly forecast sensor (e.g. sensor.tomorrow_raw_hourly)', r:false, domain:'sensor'},
       ]
     },
     {
@@ -402,6 +415,7 @@ class SolarWeatherCardEditor extends HTMLElement {
     const filled=sec.fields.filter(f=>this._config[f.k]).length;
     const total=sec.fields.length;
     const badge=filled>0?`<span style="background:var(--primary-color);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:8px;">${filled}/${total}</span>`:'';
+    const L=this._L||{solarPowerUnit:'☀️ Solar power unit',solarDesignCap:'⚡ Solar design capacity (Wp) — chart Y-axis max',solarDesignHint:'Total design capacity (Wpv). Blank = auto 8000W.',sensorMode:'Sensor mode',invertDir:'🔄 Invert direction (Deye/Growatt)',gridPowerUnit:'Grid power unit',homePowerUnit:'Home power unit',battPowerUnit:'Power unit',gridOptions:'🔌 GRID OPTIONS',homeOptions:'🏠 HOME OPTIONS'};
 
     // Options block ở đầu body cho Battery và Grid
     let optionsHTML = '';
@@ -411,7 +425,7 @@ class SolarWeatherCardEditor extends HTMLElement {
       const solarDesignWp = this._config.solar_design_wp||'';
       optionsHTML = `<div class="sec-opts">
         <div class="opt-row" style="margin-bottom:8px">
-          <label style="font-size:12px;font-weight:600">☀️ Solar power unit</label>
+          <label style="font-size:12px;font-weight:600">${L.solarPowerUnit}</label>
           <div class="bg">
             <div class="ob ${solarUnit==='auto'?'on':''}" data-t="solar_unit" data-v="auto">Auto</div>
             <div class="ob ${solarUnit==='W'?'on':''}"    data-t="solar_unit" data-v="W">W</div>
@@ -419,9 +433,9 @@ class SolarWeatherCardEditor extends HTMLElement {
           </div>
         </div>
         <div class="opt-row" style="margin-bottom:4px">
-          <label style="font-size:12px;font-weight:600">⚡ Solar design capacity (Wp) — chart Y-axis max</label>
+          <label style="font-size:12px;font-weight:600">${L.solarDesignCap}</label>
           <input type="number" id="solarDesignWpInput" placeholder="e.g. 8000" min="100" max="100000" step="100" value="${solarDesignWp}" style="background:var(--input-fill-color,rgba(0,0,0,.04));border:1px solid var(--divider-color,#e0e0e0);border-radius:8px;padding:8px 12px;font-size:13px;color:var(--primary-text-color);font-family:monospace;width:100%"/>
-          <div style="font-size:11px;color:var(--secondary-text-color);margin-top:4px;">Total design capacity (Wpv). Blank = auto 8000W. Chart will draw according to this value.</div>
+          <div style="font-size:11px;color:var(--secondary-text-color);margin-top:4px;">${L.solarDesignHint}</div>
         </div>
       </div>`;
     }
@@ -431,17 +445,17 @@ class SolarWeatherCardEditor extends HTMLElement {
       const gridUnit = this._config.grid_unit||'auto';
       const homeUnit = this._config.home_unit||'auto';
       optionsHTML = `<div class="sec-opts">
-        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:8px;letter-spacing:.4px">🔌 GRID OPTIONS</div>
+        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:8px;letter-spacing:.4px">${L.gridOptions}</div>
         <div class="opt-row" style="margin-bottom:8px">
-          <label style="font-size:12px;font-weight:600">Sensor mode</label>
+          <label style="font-size:12px;font-weight:600">${L.sensorMode}</label>
           <div class="bg">
             <div class="ob ${gridMode==='single'?'on':''}" data-t="grid_mode" data-v="single">1 sensor</div>
             <div class="ob ${gridMode==='dual'?'on':''}"   data-t="grid_mode" data-v="dual">2 sensors</div>
           </div>
         </div>
-        ${gridMode==='single'?`<div class="toggle-row" style="margin-bottom:8px"><label class="tl">🔄 Invert direction (Deye/Growatt)</label><label class="tog"><input type="checkbox" id="gridInvTog" ${gridInv?'checked':''}/><span class="tog-sl"></span></label></div>`:''}
+        ${gridMode==='single'?`<div class="toggle-row" style="margin-bottom:8px"><label class="tl">${L.invertDir}</label><label class="tog"><input type="checkbox" id="gridInvTog" ${gridInv?'checked':''}/><span class="tog-sl"></span></label></div>`:''}
         <div class="opt-row" style="margin-bottom:4px">
-          <label style="font-size:12px;font-weight:600">Grid power unit</label>
+          <label style="font-size:12px;font-weight:600">${L.gridPowerUnit}</label>
           <div class="bg">
             <div class="ob ${gridUnit==='auto'?'on':''}" data-t="grid_unit" data-v="auto">Auto</div>
             <div class="ob ${gridUnit==='W'?'on':''}"    data-t="grid_unit" data-v="W">W</div>
@@ -449,9 +463,9 @@ class SolarWeatherCardEditor extends HTMLElement {
           </div>
         </div>
         <div style="height:1px;background:var(--divider-color);margin:10px 0 8px"></div>
-        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:8px;letter-spacing:.4px">🏠 HOME OPTIONS</div>
+        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:8px;letter-spacing:.4px">${L.homeOptions}</div>
         <div class="opt-row" style="margin-bottom:4px">
-          <label style="font-size:12px;font-weight:600">Home power unit</label>
+          <label style="font-size:12px;font-weight:600">${L.homePowerUnit}</label>
           <div class="bg">
             <div class="ob ${homeUnit==='auto'?'on':''}" data-t="home_unit" data-v="auto">Auto</div>
             <div class="ob ${homeUnit==='W'?'on':''}"    data-t="home_unit" data-v="W">W</div>
@@ -467,15 +481,15 @@ class SolarWeatherCardEditor extends HTMLElement {
       const battUnit = this._config.battery_unit||'auto';
       optionsHTML = `<div class="sec-opts">
         <div class="opt-row" style="margin-bottom:8px">
-          <label style="font-size:12px;font-weight:600">Sensor mode</label>
+          <label style="font-size:12px;font-weight:600">${L.sensorMode}</label>
           <div class="bg">
             <div class="ob ${battMode==='single'?'on':''}" data-t="battery_mode" data-v="single">1 sensor</div>
             <div class="ob ${battMode==='dual'?'on':''}"   data-t="battery_mode" data-v="dual">2 sensors</div>
           </div>
         </div>
-        ${battMode==='single'?`<div class="toggle-row" style="margin-bottom:8px"><label class="tl">🔄 Invert direction (Deye/Growatt)</label><label class="tog"><input type="checkbox" id="battInvTog" ${battInv?'checked':''}/><span class="tog-sl"></span></label></div>`:''}
+        ${battMode==='single'?`<div class="toggle-row" style="margin-bottom:8px"><label class="tl">${L.invertDir}</label><label class="tog"><input type="checkbox" id="battInvTog" ${battInv?'checked':''}/><span class="tog-sl"></span></label></div>`:''}
         <div class="opt-row" style="margin-bottom:4px">
-          <label style="font-size:12px;font-weight:600">Power unit</label>
+          <label style="font-size:12px;font-weight:600">${L.battPowerUnit}</label>
           <div class="bg">
             <div class="ob ${battUnit==='auto'?'on':''}" data-t="battery_unit" data-v="auto">Auto</div>
             <div class="ob ${battUnit==='W'?'on':''}"    data-t="battery_unit" data-v="W">W</div>
@@ -523,10 +537,162 @@ class SolarWeatherCardEditor extends HTMLElement {
     const fs        = this._config.flow_style||'particle';
     const lang      = this._config.language||'vi';
     const op        = this._config.background_opacity??45;
+
+    // ── Editor UI translations ────────────────────────────────
+    const E={
+      vi:{
+        displayOpts:'🎨 Tuỳ chọn hiển thị', flowStyle:'🌊 Kiểu dòng chảy',
+        language:'🌐 Ngôn ngữ',
+        bgOpacity:'🪟 Độ mờ nền', showWeatherInfo:'☁️ Hiện bảng thời tiết',
+        showTomorrow:'🌤️ Hiện dự báo ngày mai', nodeGlow:'✨ Hiệu ứng phát sáng node',
+        showForecastChart:'📊 Hiện biểu đồ solar', showHourlyStrip:'🕐 Hiện dự báo theo giờ',
+        minimalMode:'🪄 Minimal mode (giảm animation)',
+        pricingTitle:'💰 Giá điện & Tiền tệ', currencyLabel:'💱 Ký hiệu tiền tệ (mặc định: đ)',
+        pricingTiersLabel:'📊 Bậc giá tuỳ chỉnh (tuỳ chọn)',
+        pricingHint:'Định dạng: <code>giới_hạn_kWh:đơn_giá</code>, phân cách bằng dấu phẩy. Để trống = mặc định EVN Việt Nam.',
+        layoutTitle:'📐 Bố cục node',
+        layoutHint:'Điều chỉnh nếu node Pin hoặc Lưới bị cắt trên màn hình nhỏ (iPhone, Galaxy S10...). SVG viewBox = 346px.',
+        batNodeX:'🔋 Node Pin X', grdNodeX:'🔌 Node Lưới X',
+        invNodeY:'⚙️ Node Inverter Y', homNodeY:'🏠 Node Nhà Y',
+        nodeScale:'📐 Tỉ lệ node (4 node)', particleDensity:'✦ Mật độ hạt (>1kW)',
+        layoutDefault:'Mặc định: Pin X = <strong>-40</strong>, Lưới X = <strong>295</strong>, Inverter Y = <strong>210</strong>, Nhà Y = <strong>410</strong>, Tỉ lệ = <strong>100%</strong>, Hạt = <strong>100%</strong>.<br/>Màn hình nhỏ: Pin = <strong>4</strong>, Lưới = <strong>250</strong>. Thiết bị yếu: Hạt = <strong>40–60%</strong>.',
+        colorTitle:'🎨 Màu sắc', bgGradient:'🌈 MÀU NỀN GRADIENT', preset:'Preset',
+        nodeBorderColors:'⬡ MÀU VIỀN NODE', flowColors:'〰️ MÀU DÒNG CHẢY / HẠT',
+        chartColors:'📊 MÀU BIỂU ĐỒ', textColor:'🔤 MÀU CHỮ',
+        fcLine:'📈 Đường dự báo', liveActualLine:'📉 Đường thực tế',
+        primaryText:'🔤 Chữ chính', resetColors:'↺ Đặt lại mặc định',
+        color1:'🎨 Màu 1 (trên trái)', color2:'🎨 Màu 2 (dưới phải)',
+        solarPowerUnit:'☀️ Đơn vị công suất solar', solarDesignCap:'⚡ Công suất thiết kế (Wp) — trục Y biểu đồ',
+        solarDesignHint:'Tổng công suất thiết kế (Wp). Để trống = tự động 8000W. Biểu đồ sẽ vẽ theo giá trị này.',
+        sensorMode:'Chế độ cảm biến', invertDir:'🔄 Đảo chiều (Deye/Growatt)',
+        gridPowerUnit:'Đơn vị công suất lưới', homePowerUnit:'Đơn vị công suất nhà',
+        battPowerUnit:'Đơn vị công suất', gridOptions:'🔌 TUỲ CHỌN LƯỚI', homeOptions:'🏠 TUỲ CHỌN NHÀ',
+      },
+      en:{
+        displayOpts:'🎨 Display Options', flowStyle:'🌊 Flow style',
+        language:'🌐 Language / Sprache / Lingua / Langue',
+        bgOpacity:'🪟 Background opacity', showWeatherInfo:'☁️ Show weather info panel',
+        showTomorrow:'🌤️ Show tomorrow forecast', nodeGlow:'✨ Node glow effect',
+        showForecastChart:'📊 Show solar forecast chart', showHourlyStrip:'🕐 Show hourly forecast strip',
+        minimalMode:'🪄 Minimal mode (reduce all animations)',
+        pricingTitle:'💰 Pricing & Currency', currencyLabel:'💱 Currency symbol (default: đ)',
+        pricingTiersLabel:'📊 Custom pricing tiers (optional)',
+        pricingHint:'Format: <code>limit_kWh:rate</code> comma-separated. Leave empty = Vietnam EVN default.',
+        layoutTitle:'📐 Node Layout',
+        layoutHint:'Adjust if Battery or Grid node is cut off on small screens (iPhone, Galaxy S10...). SVG viewBox width = 346px.',
+        batNodeX:'🔋 Battery node X', grdNodeX:'🔌 Grid node X',
+        invNodeY:'⚙️ Inverter node Y', homNodeY:'🏠 Home node Y',
+        nodeScale:'📐 Node scale (all 4)', particleDensity:'✦ Particle density (>1kW)',
+        layoutDefault:'Default: Battery X = <strong>-40</strong>, Grid X = <strong>295</strong>, Inverter Y = <strong>210</strong>, Home Y = <strong>410</strong>, Scale = <strong>100%</strong>, Particles = <strong>100%</strong>.<br/>Small screens: Battery = <strong>4</strong>, Grid = <strong>250</strong>. Low-end devices: Particles = <strong>40–60%</strong>.',
+        colorTitle:'🎨 Color Theme', bgGradient:'🌈 BACKGROUND GRADIENT', preset:'Preset',
+        nodeBorderColors:'⬡ NODE BORDER COLORS', flowColors:'〰️ FLOW / PARTICLE COLORS',
+        chartColors:'📊 CHART COLORS', textColor:'🔤 TEXT COLOR',
+        fcLine:'📈 Forecast line', liveActualLine:'📉 Live/actual line',
+        primaryText:'🔤 Primary text', resetColors:'↺ Reset to defaults',
+        color1:'🎨 Color 1 (top-left)', color2:'🎨 Color 2 (bottom-right)',
+        solarPowerUnit:'☀️ Solar power unit', solarDesignCap:'⚡ Solar design capacity (Wp) — chart Y-axis max',
+        solarDesignHint:'Total design capacity (Wp). Blank = auto 8000W. Chart will draw according to this value.',
+        sensorMode:'Sensor mode', invertDir:'🔄 Invert direction (Deye/Growatt)',
+        gridPowerUnit:'Grid power unit', homePowerUnit:'Home power unit',
+        battPowerUnit:'Power unit', gridOptions:'🔌 GRID OPTIONS', homeOptions:'🏠 HOME OPTIONS',
+      },
+      de:{
+        displayOpts:'🎨 Anzeigeoptionen', flowStyle:'🌊 Flussstil',
+        language:'🌐 Sprache / Language / Lingua / Langue',
+        bgOpacity:'🪟 Hintergrundtransparenz', showWeatherInfo:'☁️ Wetterinfopanel anzeigen',
+        showTomorrow:'🌤️ Morgen-Vorhersage anzeigen', nodeGlow:'✨ Node-Leuchteffekt',
+        showForecastChart:'📊 Solar-Prognose-Diagramm anzeigen', showHourlyStrip:'🕐 Stündliche Vorhersage anzeigen',
+        minimalMode:'🪄 Minimalmodus (Animationen reduzieren)',
+        pricingTitle:'💰 Preise & Währung', currencyLabel:'💱 Währungssymbol (Standard: đ)',
+        pricingTiersLabel:'📊 Benutzerdefinierte Preisstufen (optional)',
+        pricingHint:'Format: <code>limit_kWh:preis</code>, kommagetrennt. Leer = Vietnam EVN Standard.',
+        layoutTitle:'📐 Node-Layout',
+        layoutHint:'Anpassen wenn Batterie- oder Netz-Node auf kleinen Bildschirmen abgeschnitten ist.',
+        batNodeX:'🔋 Batterie-Node X', grdNodeX:'🔌 Netz-Node X',
+        invNodeY:'⚙️ Wechselrichter-Node Y', homNodeY:'🏠 Haus-Node Y',
+        nodeScale:'📐 Node-Skalierung (alle 4)', particleDensity:'✦ Partikeldichte (>1kW)',
+        layoutDefault:'Standard: Batterie X = <strong>-40</strong>, Netz X = <strong>295</strong>, WR Y = <strong>210</strong>, Haus Y = <strong>410</strong>.',
+        colorTitle:'🎨 Farbthema', bgGradient:'🌈 HINTERGRUNDVERLAUF', preset:'Preset',
+        nodeBorderColors:'⬡ NODE-RANDFARBEN', flowColors:'〰️ FLUSS-/PARTIKELFARBEN',
+        chartColors:'📊 DIAGRAMMFARBEN', textColor:'🔤 TEXTFARBE',
+        fcLine:'📈 Prognoselinie', liveActualLine:'📉 Ist-Wert-Linie',
+        primaryText:'🔤 Primärtext', resetColors:'↺ Auf Standard zurücksetzen',
+        color1:'🎨 Farbe 1 (oben links)', color2:'🎨 Farbe 2 (unten rechts)',
+        solarPowerUnit:'☀️ Solar-Leistungseinheit', solarDesignCap:'⚡ Solar-Nennleistung (Wp) — Y-Achse',
+        solarDesignHint:'Gesamte Nennleistung (Wp). Leer = auto 8000W.',
+        sensorMode:'Sensormodus', invertDir:'🔄 Richtung umkehren (Deye/Growatt)',
+        gridPowerUnit:'Netz-Leistungseinheit', homePowerUnit:'Haus-Leistungseinheit',
+        battPowerUnit:'Leistungseinheit', gridOptions:'🔌 NETZOPTIONEN', homeOptions:'🏠 HAUSOPTIONEN',
+      },
+      it:{
+        displayOpts:'🎨 Opzioni di visualizzazione', flowStyle:'🌊 Stile flusso',
+        language:'🌐 Lingua / Language / Sprache / Langue',
+        bgOpacity:'🪟 Opacità sfondo', showWeatherInfo:'☁️ Mostra pannello meteo',
+        showTomorrow:'🌤️ Mostra previsione domani', nodeGlow:'✨ Effetto bagliore nodo',
+        showForecastChart:'📊 Mostra grafico previsione solare', showHourlyStrip:'🕐 Mostra striscia oraria',
+        minimalMode:'🪄 Modalità minimale (ridurre animazioni)',
+        pricingTitle:'💰 Prezzi & Valuta', currencyLabel:'💱 Simbolo valuta (default: đ)',
+        pricingTiersLabel:'📊 Livelli di prezzo personalizzati (opzionale)',
+        pricingHint:'Formato: <code>limite_kWh:tariffa</code>, separati da virgola. Vuoto = default EVN Vietnam.',
+        layoutTitle:'📐 Layout nodi',
+        layoutHint:'Regola se il nodo Batteria o Rete è tagliato su schermi piccoli.',
+        batNodeX:'🔋 Nodo batteria X', grdNodeX:'🔌 Nodo rete X',
+        invNodeY:'⚙️ Nodo inverter Y', homNodeY:'🏠 Nodo casa Y',
+        nodeScale:'📐 Scala nodi (tutti 4)', particleDensity:'✦ Densità particelle (>1kW)',
+        layoutDefault:'Default: Batteria X = <strong>-40</strong>, Rete X = <strong>295</strong>, Inverter Y = <strong>210</strong>, Casa Y = <strong>410</strong>.',
+        colorTitle:'🎨 Tema colori', bgGradient:'🌈 GRADIENTE SFONDO', preset:'Preset',
+        nodeBorderColors:'⬡ COLORI BORDO NODO', flowColors:'〰️ COLORI FLUSSO / PARTICELLE',
+        chartColors:'📊 COLORI GRAFICO', textColor:'🔤 COLORE TESTO',
+        fcLine:'📈 Linea previsione', liveActualLine:'📉 Linea reale',
+        primaryText:'🔤 Testo primario', resetColors:'↺ Ripristina predefiniti',
+        color1:'🎨 Colore 1 (in alto a sinistra)', color2:'🎨 Colore 2 (in basso a destra)',
+        solarPowerUnit:'☀️ Unità potenza solare', solarDesignCap:'⚡ Potenza solare nominale (Wp) — asse Y',
+        solarDesignHint:'Potenza nominale totale (Wp). Vuoto = auto 8000W.',
+        sensorMode:'Modalità sensore', invertDir:'🔄 Inverti direzione (Deye/Growatt)',
+        gridPowerUnit:'Unità potenza rete', homePowerUnit:'Unità potenza casa',
+        battPowerUnit:'Unità potenza', gridOptions:'🔌 OPZIONI RETE', homeOptions:'🏠 OPZIONI CASA',
+      },
+      fr:{
+        displayOpts:'🎨 Options d\'affichage', flowStyle:'🌊 Style de flux',
+        language:'🌐 Langue / Language / Sprache / Lingua',
+        bgOpacity:'🪟 Opacité de fond', showWeatherInfo:'☁️ Afficher le panneau météo',
+        showTomorrow:'🌤️ Afficher prévision demain', nodeGlow:'✨ Effet de lueur des nœuds',
+        showForecastChart:'📊 Afficher le graphique solaire', showHourlyStrip:'🕐 Afficher prévisions horaires',
+        minimalMode:'🪄 Mode minimal (réduire animations)',
+        pricingTitle:'💰 Tarifs & Devise', currencyLabel:'💱 Symbole devise (défaut : đ)',
+        pricingTiersLabel:'📊 Niveaux de tarif personnalisés (optionnel)',
+        pricingHint:'Format : <code>limite_kWh:tarif</code>, séparés par virgule. Vide = EVN Vietnam par défaut.',
+        layoutTitle:'📐 Disposition des nœuds',
+        layoutHint:'Ajustez si le nœud Batterie ou Réseau est coupé sur les petits écrans.',
+        batNodeX:'🔋 Nœud batterie X', grdNodeX:'🔌 Nœud réseau X',
+        invNodeY:'⚙️ Nœud onduleur Y', homNodeY:'🏠 Nœud maison Y',
+        nodeScale:'📐 Échelle nœuds (4 nœuds)', particleDensity:'✦ Densité particules (>1kW)',
+        layoutDefault:'Défaut : Batterie X = <strong>-40</strong>, Réseau X = <strong>295</strong>, Onduleur Y = <strong>210</strong>, Maison Y = <strong>410</strong>.',
+        colorTitle:'🎨 Thème couleurs', bgGradient:'🌈 DÉGRADÉ DE FOND', preset:'Preset',
+        nodeBorderColors:'⬡ COULEURS BORDURE NŒUD', flowColors:'〰️ COULEURS FLUX / PARTICULES',
+        chartColors:'📊 COULEURS GRAPHIQUE', textColor:'🔤 COULEUR TEXTE',
+        fcLine:'📈 Ligne prévision', liveActualLine:'📉 Ligne réelle',
+        primaryText:'🔤 Texte principal', resetColors:'↺ Réinitialiser',
+        color1:'🎨 Couleur 1 (haut gauche)', color2:'🎨 Couleur 2 (bas droite)',
+        solarPowerUnit:'☀️ Unité puissance solaire', solarDesignCap:'⚡ Capacité solaire nominale (Wp) — axe Y',
+        solarDesignHint:'Puissance nominale totale (Wp). Vide = auto 8000W.',
+        sensorMode:'Mode capteur', invertDir:'🔄 Inverser direction (Deye/Growatt)',
+        gridPowerUnit:'Unité puissance réseau', homePowerUnit:'Unité puissance maison',
+        battPowerUnit:'Unité puissance', gridOptions:'🔌 OPTIONS RÉSEAU', homeOptions:'🏠 OPTIONS MAISON',
+      },
+    };
+    const L=E[lang]||E.en;
+    this._L=L;
     const showTmr   = this._config.show_tomorrow!==false;
     const showInfo  = this._config.show_weather_info!==false;
     const showGlow  = this._config.show_node_glow!==false;
     const showForecastChart = this._config.show_forecast_chart!==false;
+    const showHourlyForecast = this._config.show_hourly_forecast!==false;
+    const minimalMode = this._config.minimal_mode===true;
+    const bgPreset  = this._config.bg_preset||'default';
+    const bgCustom  = this._config.bg_custom||'';
+    const bgColor1  = this._config.bg_color1||'#001e2b';
+    const bgColor2  = this._config.bg_color2||'#002832';
     const cur       = this._config.currency||'đ';
     const customTiers = this._config.pricing_tiers||'';
     const isDispOpen  = this._open.display;
@@ -534,6 +700,8 @@ class SolarWeatherCardEditor extends HTMLElement {
     const isLayoutOpen  = this._open.layout;
     const batX = this._config.node_bat_x??-40;
     const grdX = this._config.node_grd_x??295;
+    const invY = this._config.node_inv_y??210;
+    const homY = this._config.node_hom_y??410;
     const nodeScale = parseFloat(this._config.node_scale??1.0);
     const particleMult = parseFloat(this._config.particle_mult??1.0);
     const isColorOpen = this._open.color||false;
@@ -608,13 +776,13 @@ class SolarWeatherCardEditor extends HTMLElement {
     <!-- DISPLAY OPTIONS accordion -->
     <div class="acc-wrap" style="margin-bottom:8px">
       <div class="acc-head" id="head-display">
-        <span>🎨 Display Options</span>
+        <span>${L.displayOpts}</span>
         <span class="acc-arrow" id="arrow-display">${isDispOpen?'▾':'▸'}</span>
       </div>
       <div class="acc-body" id="body-display" style="display:${isDispOpen?'block':'none'}">
 
         <div class="opt-row">
-          <label>🌊 Flow style</label>
+          <label>${L.flowStyle}</label>
           <div class="bg">
             <div class="ob ${fs==='particle'?'on':''}" data-t="flow_style" data-v="particle">✦ Particle</div>
             <div class="ob ${fs==='wave'?'on':''}"     data-t="flow_style" data-v="wave">〰️ Wave</div>
@@ -623,7 +791,7 @@ class SolarWeatherCardEditor extends HTMLElement {
         </div>
 
         <div class="opt-row">
-          <label>🌐 Language / Sprache / Lingua / Langue</label>
+          <label>${L.language}</label>
           <div class="lang-grid" id="langGrid">
             ${[
               {v:'vi', flag:'<img src="https://flagcdn.com/16x12/vn.png" width="20" height="14" alt="VN"/> Tiếng Việt'},
@@ -636,30 +804,41 @@ class SolarWeatherCardEditor extends HTMLElement {
         </div>
 
         <div class="sl-row">
-          <label>🪟 Background opacity</label>
+          <label>${L.bgOpacity}</label>
           <input type="range" id="opS" min="0" max="100" value="${op}" step="5"/>
           <span class="slv" id="opV">${op}%</span>
         </div>
 
         <div class="toggle-row">
-          <label class="tl">☁️ Show weather info panel</label>
+          <label class="tl">${L.showWeatherInfo}</label>
           <label class="tog"><input type="checkbox" id="infoTog" ${showInfo?'checked':''}/><span class="tog-sl"></span></label>
         </div>
 
         <div class="toggle-row">
-          <label class="tl">🌤️ Show tomorrow forecast</label>
+          <label class="tl">${L.showTomorrow}</label>
           <label class="tog"><input type="checkbox" id="tmrTog" ${showTmr?'checked':''}/><span class="tog-sl"></span></label>
         </div>
 
         <div class="toggle-row">
-          <label class="tl">✨ Node glow effect</label>
+          <label class="tl">${L.nodeGlow}</label>
           <label class="tog"><input type="checkbox" id="glowTog" ${showGlow?'checked':''}/><span class="tog-sl"></span></label>
         </div>
 
         <div class="toggle-row">
-          <label class="tl">📊 Show solar forecast chart</label>
+          <label class="tl">${L.showForecastChart}</label>
           <label class="tog"><input type="checkbox" id="forecastChartTog" ${showForecastChart?'checked':''}/><span class="tog-sl"></span></label>
         </div>
+
+        <div class="toggle-row">
+          <label class="tl">${L.showHourlyStrip}</label>
+          <label class="tog"><input type="checkbox" id="hourlyFcTog" ${showHourlyForecast?'checked':''}/><span class="tog-sl"></span></label>
+        </div>
+
+        <div class="toggle-row">
+          <label class="tl">${L.minimalMode}</label>
+          <label class="tog"><input type="checkbox" id="minimalTog" ${minimalMode?'checked':''}/><span class="tog-sl"></span></label>
+        </div>
+
 
       </div>
     </div>
@@ -670,18 +849,18 @@ class SolarWeatherCardEditor extends HTMLElement {
     <!-- PRICING accordion -->
     <div class="acc-wrap">
       <div class="acc-head" id="head-pricing">
-        <span>💰 Pricing & Currency</span>
+        <span>${L.pricingTitle}</span>
         <span class="acc-arrow" id="arrow-pricing">${isPricingOpen?'▾':'▸'}</span>
       </div>
       <div class="acc-body" id="body-pricing" style="display:${isPricingOpen?'block':'none'}">
         <div class="row">
-          <label>💱 Currency symbol (default: đ)</label>
+          <label>${L.currencyLabel}</label>
           <input type="text" id="curInput" placeholder="đ / € / $ / £ ..." value="${cur}" style="font-family:inherit"/>
         </div>
         <div class="row">
-          <label>📊 Custom pricing tiers (optional)</label>
+          <label>${L.pricingTiersLabel}</label>
           <input type="text" id="tiersInput" placeholder="50:0.10,100:0.15,∞:0.30" value="${customTiers}"/>
-          <div class="hint">Format: <code>limit_kWh:rate</code> comma-separated. Leave empty = Vietnam EVN default.</div>
+          <div class="hint">${L.pricingHint}</div>
         </div>
       </div>
     </div>
@@ -689,48 +868,90 @@ class SolarWeatherCardEditor extends HTMLElement {
     <!-- LAYOUT accordion -->
     <div class="acc-wrap">
       <div class="acc-head" id="head-layout">
-        <span>📐 Node Layout</span>
+        <span>${L.layoutTitle}</span>
         <span class="acc-arrow" id="arrow-layout">${isLayoutOpen?'▾':'▸'}</span>
       </div>
       <div class="acc-body" id="body-layout" style="display:${isLayoutOpen?'block':'none'}">
-        <div class="hint" style="margin-bottom:10px">
-          Adjust if Battery or Grid node is cut off on small screens (iPhone, Galaxy S10...). SVG viewBox width = 346px.
-        </div>
+        <div class="hint" style="margin-bottom:10px">${L.layoutHint}</div>
         <div class="sl-row">
-          <label>🔋 Battery node X</label>
+          <label>${L.batNodeX}</label>
           <input type="range" id="batXSl" min="-50" max="80" value="${batX}" step="1"/>
           <span class="slv" id="batXV">${batX}</span>
         </div>
         <div class="sl-row" style="margin-top:6px">
-          <label>🔌 Grid node X</label>
+          <label>${L.grdNodeX}</label>
           <input type="range" id="grdXSl" min="214" max="345" value="${grdX}" step="1"/>
           <span class="slv" id="grdXV">${grdX}</span>
         </div>
         <div class="sl-row" style="margin-top:6px">
-          <label>📐 Node scale (all 4)</label>
+          <label>${L.invNodeY}</label>
+          <input type="range" id="invYSl" min="140" max="300" value="${invY}" step="5"/>
+          <span class="slv" id="invYV">${invY}</span>
+        </div>
+        <div class="sl-row" style="margin-top:6px">
+          <label>${L.homNodeY}</label>
+          <input type="range" id="homYSl" min="300" max="480" value="${homY}" step="5"/>
+          <span class="slv" id="homYV">${homY}</span>
+        </div>
+        <div class="sl-row" style="margin-top:6px">
+          <label>${L.nodeScale}</label>
           <input type="range" id="nodeScSl" min="0.5" max="1.2" value="${this._config.node_scale??1.0}" step="0.05"/>
           <span class="slv" id="nodeScV">${((this._config.node_scale??1.0)*100).toFixed(0)}%</span>
         </div>
         <div class="sl-row" style="margin-top:6px">
-          <label>✦ Particle density (>1kW)</label>
+          <label>${L.particleDensity}</label>
           <input type="range" id="partMSl" min="0.2" max="1.0" value="${this._config.particle_mult??1.0}" step="0.1"/>
           <span class="slv" id="partMV">${Math.round((this._config.particle_mult??1.0)*100)}%</span>
         </div>
-        <div class="hint" style="margin-top:8px">
-          Default: Battery X = <strong>-40</strong>, Grid X = <strong>295</strong>, Scale = <strong>100%</strong>, Particles = <strong>100%</strong>.<br/>
-          Small screens: Battery = <strong>4</strong>, Grid = <strong>250</strong>. Low-end devices: Particles = <strong>40–60%</strong>.
-        </div>
+        <div class="hint" style="margin-top:8px">${L.layoutDefault}</div>
       </div>
     </div>
 
     <!-- COLOR THEME accordion -->
     <div class="acc-wrap">
       <div class="acc-head" id="head-color">
-        <span>🎨 Color Theme</span>
+        <span>${L.colorTitle}</span>
         <span class="acc-arrow" id="arrow-color">${isColorOpen?'▾':'▸'}</span>
       </div>
       <div class="acc-body" id="body-color" style="display:${isColorOpen?'block':'none'}">
-        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:10px;letter-spacing:.4px">⬡ NODE BORDER COLORS</div>
+        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:8px;letter-spacing:.4px">${L.bgGradient}</div>
+        <div class="opt-row" style="margin-bottom:8px">
+          <label>${L.preset}</label>
+          <div class="bg" style="flex-wrap:wrap;gap:5px;">
+            ${[
+              {v:'default',  l:'🌊 Default'},
+              {v:'night',    l:'🌌 Night'},
+              {v:'sunset',   l:'🌅 Sunset'},
+              {v:'forest',   l:'🌿 Forest'},
+              {v:'aurora',   l:'🔮 Aurora'},
+              {v:'desert',   l:'🏜️ Desert'},
+              {v:'ocean',    l:'🌊 Ocean'},
+              {v:'custom',   l:'✏️ Custom'},
+            ].map(p=>`<div class="ob ${bgPreset===p.v?'on':''}" data-t="bg_preset" data-v="${p.v}" style="flex:none;padding:6px 10px;">${p.l}</div>`).join('')}
+          </div>
+        </div>
+        ${bgPreset==='custom'?`
+        <div style="background:var(--secondary-background-color);border-radius:8px;padding:10px 12px;border:1px solid var(--divider-color);margin-bottom:4px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <div style="flex:1">
+              <label style="font-size:11px;color:var(--secondary-text-color);display:block;margin-bottom:4px;">${L.color1}</label>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="color" id="bgColor1" value="${bgColor1}" style="width:36px;height:28px;border:none;background:none;cursor:pointer;padding:0;border-radius:4px;"/>
+                <span style="font-size:11px;font-family:monospace;color:var(--primary-text-color);">${bgColor1}</span>
+              </div>
+            </div>
+            <div style="flex:1">
+              <label style="font-size:11px;color:var(--secondary-text-color);display:block;margin-bottom:4px;">${L.color2}</label>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="color" id="bgColor2" value="${bgColor2}" style="width:36px;height:28px;border:none;background:none;cursor:pointer;padding:0;border-radius:4px;"/>
+                <span style="font-size:11px;font-family:monospace;color:var(--primary-text-color);">${bgColor2}</span>
+              </div>
+            </div>
+          </div>
+          <div id="bgGradPreview" style="height:28px;border-radius:6px;background:linear-gradient(135deg,${bgColor1},${bgColor2});border:1px solid rgba(255,255,255,.15);"></div>
+        </div>`:''}
+        <div style="height:1px;background:var(--divider-color);margin:10px 0 10px"></div>
+        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:10px;letter-spacing:.4px">${L.nodeBorderColors}</div>
         <div class="color-grid">
           <div class="color-item"><label>🔋 Battery</label><div class="color-preview-wrap"><input type="color" id="c_node_bat" value="${colorBat}" data-ck="color_node_bat"/><span class="color-hex">${colorBat}</span></div></div>
           <div class="color-item"><label>🔌 Grid</label><div class="color-preview-wrap"><input type="color" id="c_node_grd" value="${colorGrd}" data-ck="color_node_grd"/><span class="color-hex">${colorGrd}</span></div></div>
@@ -738,7 +959,7 @@ class SolarWeatherCardEditor extends HTMLElement {
           <div class="color-item"><label>🏠 Home</label><div class="color-preview-wrap"><input type="color" id="c_node_hom" value="${colorHom}" data-ck="color_node_hom"/><span class="color-hex">${colorHom}</span></div></div>
         </div>
         <div style="height:1px;background:var(--divider-color);margin:10px 0 10px"></div>
-        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:10px;letter-spacing:.4px">〰️ FLOW / PARTICLE COLORS</div>
+        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:10px;letter-spacing:.4px">${L.flowColors}</div>
         <div class="color-grid">
           <div class="color-item"><label>☀️ Solar flow</label><div class="color-preview-wrap"><input type="color" id="c_flow_solar" value="${colorSolar}" data-ck="color_flow_solar"/><span class="color-hex">${colorSolar}</span></div></div>
           <div class="color-item"><label>🔌 Grid flow</label><div class="color-preview-wrap"><input type="color" id="c_flow_grid" value="${colorGrid}" data-ck="color_flow_grid"/><span class="color-hex">${colorGrid}</span></div></div>
@@ -746,18 +967,18 @@ class SolarWeatherCardEditor extends HTMLElement {
           <div class="color-item"><label>🏠 Home flow</label><div class="color-preview-wrap"><input type="color" id="c_flow_home" value="${colorHome}" data-ck="color_flow_home"/><span class="color-hex">${colorHome}</span></div></div>
         </div>
         <div style="height:1px;background:var(--divider-color);margin:10px 0 10px"></div>
-        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:10px;letter-spacing:.4px">📊 CHART COLORS</div>
+        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:10px;letter-spacing:.4px">${L.chartColors}</div>
         <div class="color-grid">
-          <div class="color-item"><label>📈 Forecast line</label><div class="color-preview-wrap"><input type="color" id="c_chart_fc" value="${colorChartFc}" data-ck="color_chart_fc"/><span class="color-hex">${colorChartFc}</span></div></div>
-          <div class="color-item"><label>📉 Live/actual line</label><div class="color-preview-wrap"><input type="color" id="c_chart_live" value="${colorChartLive}" data-ck="color_chart_live"/><span class="color-hex">${colorChartLive}</span></div></div>
+          <div class="color-item"><label>${L.fcLine}</label><div class="color-preview-wrap"><input type="color" id="c_chart_fc" value="${colorChartFc}" data-ck="color_chart_fc"/><span class="color-hex">${colorChartFc}</span></div></div>
+          <div class="color-item"><label>${L.liveActualLine}</label><div class="color-preview-wrap"><input type="color" id="c_chart_live" value="${colorChartLive}" data-ck="color_chart_live"/><span class="color-hex">${colorChartLive}</span></div></div>
         </div>
         <div style="height:1px;background:var(--divider-color);margin:10px 0 10px"></div>
-        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:10px;letter-spacing:.4px">🔤 TEXT COLOR</div>
+        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:10px;letter-spacing:.4px">${L.textColor}</div>
         <div class="color-grid">
-          <div class="color-item"><label>🔤 Primary text</label><div class="color-preview-wrap"><input type="color" id="c_text_primary" value="${colorText}" data-ck="color_text_primary"/><span class="color-hex">${colorText}</span></div></div>
+          <div class="color-item"><label>${L.primaryText}</label><div class="color-preview-wrap"><input type="color" id="c_text_primary" value="${colorText}" data-ck="color_text_primary"/><span class="color-hex">${colorText}</span></div></div>
         </div>
         <div style="margin-top:10px">
-          <button id="resetColors" style="padding:7px 14px;border-radius:8px;border:1.5px solid var(--divider-color);background:var(--secondary-background-color);font-size:12px;cursor:pointer;color:var(--primary-text-color)">↺ Reset to defaults</button>
+          <button id="resetColors" style="padding:7px 14px;border-radius:8px;border:1.5px solid var(--divider-color);background:var(--secondary-background-color);font-size:12px;cursor:pointer;color:var(--primary-text-color)">${L.resetColors}</button>
         </div>
       </div>
     </div>`;
@@ -829,6 +1050,16 @@ class SolarWeatherCardEditor extends HTMLElement {
         this._fire();
       });
     }
+    const invYSl=this.shadowRoot.getElementById('invYSl');
+    if(invYSl){
+      invYSl.addEventListener('input',e=>{ this.shadowRoot.getElementById('invYV').textContent=e.target.value; });
+      invYSl.addEventListener('change',e=>{ this._config={...this._config,node_inv_y:parseInt(e.target.value)}; this._fire(); });
+    }
+    const homYSl=this.shadowRoot.getElementById('homYSl');
+    if(homYSl){
+      homYSl.addEventListener('input',e=>{ this.shadowRoot.getElementById('homYV').textContent=e.target.value; });
+      homYSl.addEventListener('change',e=>{ this._config={...this._config,node_hom_y:parseInt(e.target.value)}; this._fire(); });
+    }
     const nodeScSl=this.shadowRoot.getElementById('nodeScSl');
     if(nodeScSl){
       nodeScSl.addEventListener('input',e=>{
@@ -862,6 +1093,14 @@ class SolarWeatherCardEditor extends HTMLElement {
     });
     this.shadowRoot.getElementById('forecastChartTog').addEventListener('change',e=>{
       this._config={...this._config,show_forecast_chart:e.target.checked}; this._fire();
+    });
+    const hourlyFcTog=this.shadowRoot.getElementById('hourlyFcTog');
+    if(hourlyFcTog) hourlyFcTog.addEventListener('change',e=>{
+      this._config={...this._config,show_hourly_forecast:e.target.checked}; this._fire();
+    });
+    const minimalTog=this.shadowRoot.getElementById('minimalTog');
+    if(minimalTog) minimalTog.addEventListener('change',e=>{
+      this._config={...this._config,minimal_mode:e.target.checked}; this._fire();
     });
 
     // ── Pricing ─────────────────────────────────────────────────
@@ -902,9 +1141,44 @@ class SolarWeatherCardEditor extends HTMLElement {
       const c={...this._config};
       ['color_node_bat','color_node_grd','color_node_inv','color_node_hom',
        'color_flow_solar','color_flow_grid','color_flow_batt','color_flow_home',
-       'color_chart_fc','color_chart_live','color_text_primary'].forEach(k=>delete c[k]);
+       'color_chart_fc','color_chart_live','color_text_primary',
+       'bg_preset','bg_custom','bg_color1','bg_color2'].forEach(k=>delete c[k]);
       this._config=c; this._fire(); this._render();
     });
+
+    // ── BG custom color pickers ──────────────────────────────
+    const bgC1=this.shadowRoot.getElementById('bgColor1');
+    const bgC2=this.shadowRoot.getElementById('bgColor2');
+    const _updateBgGradient=()=>{
+      const c1=this._config.bg_color1||'#001e2b';
+      const c2=this._config.bg_color2||'#002832';
+      const prev=this.shadowRoot.getElementById('bgGradPreview');
+      if(prev) prev.style.background=`linear-gradient(135deg,${c1},${c2})`;
+      this._config={...this._config,bg_custom:`linear-gradient(135deg,${c1},${c2})`};
+      this._fire();
+    };
+    if(bgC1){
+      bgC1.addEventListener('input',e=>{
+        const span=e.target.nextElementSibling; if(span) span.textContent=e.target.value;
+        const prev=this.shadowRoot.getElementById('bgGradPreview');
+        const c2=this._config.bg_color2||'#002832';
+        if(prev) prev.style.background=`linear-gradient(135deg,${e.target.value},${c2})`;
+      });
+      bgC1.addEventListener('change',e=>{
+        this._config={...this._config,bg_color1:e.target.value}; _updateBgGradient();
+      });
+    }
+    if(bgC2){
+      bgC2.addEventListener('input',e=>{
+        const span=e.target.nextElementSibling; if(span) span.textContent=e.target.value;
+        const prev=this.shadowRoot.getElementById('bgGradPreview');
+        const c1=this._config.bg_color1||'#001e2b';
+        if(prev) prev.style.background=`linear-gradient(135deg,${c1},${e.target.value})`;
+      });
+      bgC2.addEventListener('change',e=>{
+        this._config={...this._config,bg_color2:e.target.value}; _updateBgGradient();
+      });
+    }
 
     // ── ha-entity-picker events ─────────────────────────────────
     this.shadowRoot.querySelectorAll('ha-entity-picker').forEach(picker=>{
@@ -933,7 +1207,7 @@ customElements.define('solar-weather-card-editor',SolarWeatherCardEditor);
 // CARD
 // ═══════════════════════════════════════════════════════════════
 class SolarWeatherCard extends HTMLElement {
-  constructor(){ super(); this.attachShadow({mode:'open'}); this._hass=null; this._config={}; this._iv=null; this._tickerIv=null; this._raf=null; this._lastSig=null; }
+  constructor(){ super(); this.attachShadow({mode:'open'}); this._hass=null; this._config={}; this._iv=null; this._raf=null; this._lastSig=null; }
 
   static getConfigElement(){ return document.createElement('solar-weather-card-editor'); }
   static getStubConfig(){
@@ -942,9 +1216,12 @@ class SolarWeatherCard extends HTMLElement {
       battery_mode:'single', battery_invert:false, battery_unit:'auto',
       grid_mode:'single', grid_invert:false, grid_unit:'auto',
       solar_unit:'auto', home_unit:'auto', solar_design_wp:8000,
-      show_weather_info:true, show_tomorrow:true, show_node_glow:true, show_forecast_chart:true, currency:'đ', pricing_tiers:'',
+      show_weather_info:true, show_tomorrow:true, show_node_glow:true, show_forecast_chart:true,
+      show_hourly_forecast:true, minimal_mode:false,
+      bg_preset:'default', bg_custom:'',
+      currency:'đ', pricing_tiers:'',
       weather_entity:'', temperature_entity:'', humidity_entity:'',
-      pressure_entity:'', uv_entity:'', rain_entity:'',
+      pressure_entity:'', uv_entity:'', hourly_forecast_entity:'',
       solar_pv1_entity:'', solar_pv2_entity:'',
       solar_pv1_voltage_entity:'', solar_pv2_voltage_entity:'',
       battery_soc_entity:'', battery_flow_entity:'',
@@ -968,19 +1245,19 @@ class SolarWeatherCard extends HTMLElement {
   connectedCallback(){
     // Clock update mỗi 30s — chỉ update DOM clock, không render lại toàn bộ
     this._iv=setInterval(()=>this._tickClock(),30000);
-    // Ticker chỉ reset mỗi 5 phút
-    this._tickerIv=setInterval(()=>{ this._lastSig=null; this._schedRender(); },300000);
     this._schedRender();
   }
   disconnectedCallback(){
     if(this._iv) clearInterval(this._iv);
-    if(this._tickerIv) clearInterval(this._tickerIv);
     if(this._raf) cancelAnimationFrame(this._raf);
   }
-  // Debounce render — gộp nhiều hass update liên tiếp thành 1 lần render
+  // Debounce render — double-rAF: gộp nhiều hass update liên tiếp thành 1 lần render,
+  // tránh render giữa chừng khi HA push nhiều state cùng 1 frame
   _schedRender(){
     if(this._raf) cancelAnimationFrame(this._raf);
-    this._raf=requestAnimationFrame(()=>{ this._raf=null; this._smartRender(); });
+    this._raf=requestAnimationFrame(()=>{
+      this._raf=requestAnimationFrame(()=>{ this._raf=null; this._smartRender(); });
+    });
   }
   // Chỉ render khi giá trị sensor thực sự thay đổi
   _smartRender(){
@@ -1216,19 +1493,30 @@ class SolarWeatherCard extends HTMLElement {
   }
 
   // ── Particle flow ────────────────────────────────────────────
+  // Dùng seeded pseudo-random thay Math.random() để SVG ổn định giữa các render,
+  // tránh nháy do particle coordinates thay đổi mỗi lần rebuild DOM
   _particles(pathD,pid,color,gc,fl){
+    const rng=(seed)=>((seed*1664525+1013904223)&0x7fffffff)/0x7fffffff;
     let h=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="1" stroke-dasharray="4,18" opacity="0.15" stroke-linecap="round"/>`;
     for(let j=0;j<Math.ceil(fl.count/3);j++){ const d=(j/Math.ceil(fl.count/3)*fl.dur).toFixed(3); h+=`<circle r="${(fl.size*2.6).toFixed(2)}" fill="${gc}" opacity="0.18" filter="url(#pBlur)"><animateMotion dur="${fl.dur}s" begin="-${d}s" repeatCount="indefinite" rotate="auto"><mpath href="#${pid}"/></animateMotion></circle>`; }
-    for(let i=0;i<fl.count;i++){ const d=(i/fl.count*fl.dur).toFixed(3); h+=`<circle r="${(fl.size*(0.5+Math.random())).toFixed(2)}" fill="${color}" opacity="${(0.6+Math.random()*0.4).toFixed(2)}"><animateMotion dur="${fl.dur}s" begin="-${d}s" repeatCount="indefinite" rotate="auto"><mpath href="#${pid}"/></animateMotion></circle>`; }
+    for(let i=0;i<fl.count;i++){
+      const r1=rng(i*7+1),r2=rng(i*13+3);
+      const d=(i/fl.count*fl.dur).toFixed(3);
+      h+=`<circle r="${(fl.size*(0.5+r1*0.5)).toFixed(2)}" fill="${color}" opacity="${(0.6+r2*0.4).toFixed(2)}"><animateMotion dur="${fl.dur}s" begin="-${d}s" repeatCount="indefinite" rotate="auto"><mpath href="#${pid}"/></animateMotion></circle>`;
+    }
     const hc=Math.ceil(fl.count*0.4);
     for(let k=0;k<hc;k++){ const d=(k/hc*fl.dur).toFixed(3); h+=`<circle r="${(fl.size*0.45).toFixed(2)}" fill="rgba(255,255,255,.92)" opacity="0.85" filter="url(#pBlurSm)"><animateMotion dur="${fl.dur}s" begin="-${d}s" repeatCount="indefinite" rotate="auto"><mpath href="#${pid}"/></animateMotion></circle>`; }
     const sk=Math.ceil(fl.count*0.55);
-    for(let s=0;s<sk;s++){ const sd=(Math.random()*fl.dur).toFixed(3),ox=(Math.random()*12-6).toFixed(1),oy=(Math.random()*12-6).toFixed(1); h+=`<g transform="translate(${ox},${oy})"><circle r="${(0.9+Math.random()*1.8).toFixed(2)}" fill="${color}" opacity="${(0.22+Math.random()*0.45).toFixed(2)}"><animateMotion dur="${fl.dur}s" begin="-${sd}s" repeatCount="indefinite"><mpath href="#${pid}"/></animateMotion></circle></g>`; }
+    for(let s=0;s<sk;s++){
+      const sd=(rng(s*17+5)*fl.dur).toFixed(3),ox=((rng(s*23+7)-0.5)*12).toFixed(1),oy=((rng(s*31+11)-0.5)*12).toFixed(1);
+      h+=`<g transform="translate(${ox},${oy})"><circle r="${(0.9+rng(s*37+13)*1.8).toFixed(2)}" fill="${color}" opacity="${(0.22+rng(s*41+17)*0.45).toFixed(2)}"><animateMotion dur="${fl.dur}s" begin="-${sd}s" repeatCount="indefinite"><mpath href="#${pid}"/></animateMotion></circle></g>`;
+    }
     return h;
   }
 
   // ── Wave flow (từ YAML mới) ───────────────────────────────────
   _wave(pathD,pid,color,gc,fl){
+    const rng=(seed)=>((seed*1664525+1013904223)&0x7fffffff)/0x7fffffff;
     let h='';
     const dashDur=(fl.dur*0.8).toFixed(2);
     const dashLen=(8+fl.size*1.5).toFixed(1);
@@ -1238,16 +1526,17 @@ class SolarWeatherCard extends HTMLElement {
     h+=`<path d="${pathD}" fill="none" stroke="${gc}" stroke-width="6" stroke-dasharray="${dashLen} ${gapLen}" stroke-linecap="round" opacity="0.25" filter="url(#pBlur)"><animate attributeName="stroke-dashoffset" from="${dashTotal}" to="0" dur="${dashDur}s" repeatCount="indefinite" calcMode="linear"/></path>`;
     h+=`<path d="${pathD}" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.8" stroke-dasharray="${dashLen} ${gapLen}" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="${dashTotal}" to="0" dur="${dashDur}s" repeatCount="indefinite" calcMode="linear"/></path>`;
     h+=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="1.0" stroke-dasharray="${dashLen} ${gapLen}" stroke-linecap="round" opacity="0.85"><animate attributeName="stroke-dashoffset" from="${dashTotal}" to="0" dur="${dashDur}s" repeatCount="indefinite" calcMode="linear"/></path>`;
-    // sine wave particles
+    // sine wave particles — giảm số lượng để nhẹ hơn
     const waveDefs=[
       {amp:6, period:28, dur:fl.dur*0.9,  ox:0,  op:0.9,  sc:'rgba(255,255,255,0.92)'},
       {amp:10,period:38, dur:fl.dur*1.1,  ox:3,  op:0.6,  sc:color},
       {amp:8, period:22, dur:fl.dur*0.75, ox:-3, op:0.45, sc:gc},
       {amp:14,period:48, dur:fl.dur*1.25, ox:5,  op:0.3,  sc:color},
     ];
-    const wc=Math.min(4,Math.max(2,Math.round(fl.count/4)));
+    // Giảm wc và sineCount để ít element hơn (~60% của code cũ)
+    const wc=Math.min(3,Math.max(1,Math.round(fl.count/5)));
     for(let wi=0;wi<wc;wi++){
-      const wd=waveDefs[wi],sineCount=Math.round(fl.count*0.8),sineDur=wd.dur.toFixed(2);
+      const wd=waveDefs[wi],sineCount=Math.round(fl.count*0.5),sineDur=wd.dur.toFixed(2);
       for(let si=0;si<sineCount;si++){
         const frac=si/sineCount,phase=frac*Math.PI*2;
         const sY=(wd.amp*Math.sin(phase+wi*1.1)).toFixed(1);
@@ -1256,13 +1545,14 @@ class SolarWeatherCard extends HTMLElement {
         const sOp=(wd.op*(0.5+0.5*Math.abs(Math.sin(phase)))).toFixed(2);
         const sR=(0.9+Math.abs(Math.sin(phase))*1.4).toFixed(2);
         h+=`<g transform="translate(${sX},${sY})"><circle r="${sR}" fill="${wd.sc}" opacity="${sOp}"><animateMotion dur="${sineDur}s" begin="-${sDelay}s" repeatCount="indefinite" rotate="auto"><mpath href="#${pid}"/></animateMotion></circle></g>`;
-        if(si%5===0) h+=`<g transform="translate(${(parseFloat(sX)+1.5).toFixed(1)},${(parseFloat(sY)-1.5).toFixed(1)})"><circle r="0.6" fill="rgba(255,255,255,0.95)" opacity="${(wd.op*0.7).toFixed(2)}"><animateMotion dur="${sineDur}s" begin="-${sDelay}s" repeatCount="indefinite" rotate="auto"><mpath href="#${pid}"/></animateMotion></circle></g>`;
+        // Giảm highlight dot: chỉ mỗi 8 thay vì 5
+        if(si%8===0) h+=`<g transform="translate(${(parseFloat(sX)+1.5).toFixed(1)},${(parseFloat(sY)-1.5).toFixed(1)})"><circle r="0.6" fill="rgba(255,255,255,0.95)" opacity="${(wd.op*0.7).toFixed(2)}"><animateMotion dur="${sineDur}s" begin="-${sDelay}s" repeatCount="indefinite" rotate="auto"><mpath href="#${pid}"/></animateMotion></circle></g>`;
       }
     }
-    // dust
-    const dustCount=Math.round(fl.count*1.2);
+    // dust — giảm từ count*1.2 xuống count*0.6, dùng seeded rng
+    const dustCount=Math.round(fl.count*0.6);
     for(let di=0;di<dustCount;di++){
-      const r1=((di*167+41)%97)/97,r2=((di*233+61)%89)/89,r3=((di*311+23)%83)/83,r4=((di*421+37)%79)/79;
+      const r1=rng(di*167+41),r2=rng(di*233+61),r3=rng(di*311+23),r4=rng(di*421+37);
       const dox=((r1-0.5)*fl.size*7).toFixed(1),doy=((r2-0.5)*fl.size*7).toFixed(1);
       const dDur=(fl.dur*(0.6+r3*0.8)).toFixed(2),dDelay=(r4*parseFloat(dDur)).toFixed(3);
       h+=`<g transform="translate(${dox},${doy})"><circle r="${(0.4+r1*0.9).toFixed(2)}" fill="${r3>0.6?'rgba(255,255,255,0.9)':color}" opacity="${(0.15+r2*0.45).toFixed(2)}"><animateMotion dur="${dDur}s" begin="-${dDelay}s" repeatCount="indefinite"><mpath href="#${pid}"/></animateMotion></circle></g>`;
@@ -1270,7 +1560,7 @@ class SolarWeatherCard extends HTMLElement {
     // bright dots
     const dotCount=Math.max(2,Math.round(fl.count/3));
     for(let dti=0;dti<dotCount;dti++){
-      const br1=((dti*191+47)%97)/97,br2=((dti*277+83)%89)/89;
+      const br1=rng(dti*191+47),br2=rng(dti*277+83);
       const bDur=(fl.dur*(0.45+br1*0.5)).toFixed(2),bDelay=(br2*parseFloat(bDur)).toFixed(3);
       const bR=(1.2+br1*1.6).toFixed(2);
       h+=`<circle r="${(parseFloat(bR)*2.8).toFixed(1)}" fill="${gc}" opacity="0.3" filter="url(#pBlurSm)"><animateMotion dur="${bDur}s" begin="-${bDelay}s" repeatCount="indefinite"><mpath href="#${pid}"/></animateMotion></circle>`;
@@ -1289,13 +1579,13 @@ class SolarWeatherCard extends HTMLElement {
       <path d="${path}" fill="none" stroke="${c3.replace('X','0.5')}" stroke-width="${w3}" stroke-dasharray="6,120" stroke-linecap="round" filter="url(#sf)"><animate attributeName="stroke-dashoffset" from="126" to="0" dur="${dur}s" begin="0.15s" repeatCount="indefinite"/></path>`;
   }
 
-  _svgCard(x,y,w,h,cc,glow,cbg,icoFn,val,dir,sub,active,showGlow){
+  _svgCard(x,y,w,h,cc,glow,cbg,icoFn,val,dir,sub,active,showGlow,minimal){
     const barH=56,topH=h-barH,cx=x+w/2,cid=`c${(x*100+y*10+w+h)|0}`;
     let s=`<defs><clipPath id="${cid}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="13"/></clipPath></defs>`;
-    if(showGlow){
+    if(showGlow&&!minimal){
       if(active){
-        s+=`<rect x="${x-3}" y="${y-3}" width="${w+6}" height="${h+6}" rx="15" fill="none" stroke="${glow}" stroke-width="12" filter="url(#pBlur)"><animate attributeName="opacity" values="0;0;.8;0;0;.6;0" dur="1.4s" repeatCount="indefinite" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1"/></rect>`;
-        s+=`<rect x="${x-1}" y="${y-1}" width="${w+2}" height="${h+2}" rx="14" fill="none" stroke="${cc}" stroke-width="2" filter="url(#pBlurSm)"><animate attributeName="opacity" values="0;0;.9;0;0;.5;0" dur="1.4s" repeatCount="indefinite" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1"/></rect>`;
+        s+=`<rect x="${x-3}" y="${y-3}" width="${w+6}" height="${h+6}" rx="15" fill="none" stroke="${glow}" stroke-width="12" filter="url(#pBlur)"><animate attributeName="opacity" values="0;.7;0" dur="1.4s" repeatCount="indefinite"/></rect>`;
+        s+=`<rect x="${x-1}" y="${y-1}" width="${w+2}" height="${h+2}" rx="14" fill="none" stroke="${cc}" stroke-width="2" filter="url(#pBlurSm)"><animate attributeName="opacity" values="0;.85;0" dur="1.4s" repeatCount="indefinite"/></rect>`;
       } else {
         s+=`<rect x="${x-2}" y="${y-2}" width="${w+4}" height="${h+4}" rx="14" fill="none" stroke="${glow}" stroke-width="6" filter="url(#pBlur)" opacity=".12"/>`;
       }
@@ -1304,13 +1594,12 @@ class SolarWeatherCard extends HTMLElement {
     s+=`<rect x="${x}" y="${y}" width="${w}" height="${topH}" fill="none" stroke="${cc}" stroke-width=".35" stroke-dasharray="2,16" opacity=".07"/>`;
     s+=`<ellipse cx="${cx}" cy="${y+topH}" rx="${w*.42}" ry="${topH*.28}" fill="${glow}" opacity=".15" filter="url(#pBlur)"/>`;
     s+=`<rect x="${x}" y="${y}" width="${w}" height="20" fill="rgba(255,255,255,.06)"/></g>`;
-    if(showGlow){
-      // Với glow: border nhịp tim khi active
-      if(active){ s+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="13" fill="none" stroke="${cc}" stroke-width="1.8"><animate attributeName="stroke-opacity" values=".2;.2;1;.2;.2;.7;.2" dur="1.4s" repeatCount="indefinite" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1;.4 0 .6 1"/></rect>`; }
+    if(showGlow&&!minimal){
+      if(active){ s+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="13" fill="none" stroke="${cc}" stroke-width="1.8"><animate attributeName="stroke-opacity" values=".2;.95;.2" dur="1.4s" repeatCount="indefinite"/></rect>`; }
       else { s+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="13" fill="none" stroke="${cc}" stroke-width="1.2" opacity=".35"/>`; }
       s+=`<rect x="${x+1}" y="${y+1}" width="${w-2}" height="${h-2}" rx="12" fill="none" stroke="${glow}" stroke-width="3" filter="url(#pBlurSm)"><animate attributeName="opacity" values=".2;.5;.2" dur="2.5s" repeatCount="indefinite"/></rect>`;
     } else {
-      // Không glow: border sáng tĩnh, không animation
+      // No glow or minimal: static border only
       s+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="13" fill="none" stroke="${cc}" stroke-width="${active?'1.8':'1.2'}" opacity="${active?'.85':'.35'}"/>`;
     }
     const cs=10,cw=2;
@@ -1350,11 +1639,28 @@ class SolarWeatherCard extends HTMLElement {
     const isParticle=flowStyle==='particle';
     const isWave=flowStyle==='wave';
     const bgOp=(cfg.background_opacity??45)/100;
+    const bgPreset=cfg.bg_preset||'default';
+    const bgColor1=cfg.bg_color1||'#001e2b';
+    const bgColor2=cfg.bg_color2||'#002832';
     const showTmr=cfg.show_tomorrow!==false;
     const showInfo=cfg.show_weather_info!==false;
     const showGlow=cfg.show_node_glow!==false;
     const showForecastChart=cfg.show_forecast_chart!==false;
+    const showHourlyForecast=cfg.show_hourly_forecast!==false;
+    const minimalMode=cfg.minimal_mode===true;
     const currency=cfg.currency||'đ';
+    const _hexToRgba=(hex,a)=>{try{const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return `rgba(${r},${g},${b},${parseFloat(a).toFixed(2)})`;}catch{return hex;}};
+    const _bgPresets={
+      default: `linear-gradient(135deg,rgba(0,20,30,${bgOp}) 0%,rgba(0,40,50,${(bgOp*0.78).toFixed(2)}) 100%)`,
+      night:   `linear-gradient(135deg,rgba(0,0,20,${bgOp}) 0%,rgba(10,0,40,${(bgOp*0.85).toFixed(2)}) 100%)`,
+      sunset:  `linear-gradient(135deg,rgba(40,10,0,${bgOp}) 0%,rgba(70,20,0,${(bgOp*0.80).toFixed(2)}) 100%)`,
+      forest:  `linear-gradient(135deg,rgba(0,20,8,${bgOp}) 0%,rgba(0,35,12,${(bgOp*0.80).toFixed(2)}) 100%)`,
+      aurora:  `linear-gradient(135deg,rgba(0,30,25,${bgOp}) 0%,rgba(15,0,40,${(bgOp*0.82).toFixed(2)}) 100%)`,
+      desert:  `linear-gradient(135deg,rgba(35,20,0,${bgOp}) 0%,rgba(50,25,0,${(bgOp*0.82).toFixed(2)}) 100%)`,
+      ocean:   `linear-gradient(135deg,rgba(0,15,40,${bgOp}) 0%,rgba(0,30,60,${(bgOp*0.80).toFixed(2)}) 100%)`,
+      custom:  `linear-gradient(135deg,${_hexToRgba(bgColor1,bgOp)} 0%,${_hexToRgba(bgColor2,(bgOp*0.80).toFixed(2))} 100%)`,
+    };
+    const bg=_bgPresets[bgPreset]||_bgPresets.default;
 
     // Color theme
     const clrNodeBat  = cfg.color_node_bat  ||'rgba(40,230,160,1)';
@@ -1384,62 +1690,86 @@ class SolarWeatherCard extends HTMLElement {
     const humid=humidRaw!==null?Math.round(humidRaw):null;
     const uvRaw=_rS('uv_entity');
     const uv=uvRaw!==null?uvRaw.toFixed(1):null;
-    const rain=this._g('rain_entity','');
     const pressRaw=_rS('pressure_entity');
     const press=pressRaw!==null?Math.round(pressRaw):null;
+
+    // Weather entity — nếu không cấu hình thì wState=null, không hiện icon/điều kiện
     const wId=cfg.weather_entity;
-    const _wRaw=(wId&&this._hass.states[wId]?.state)||'cloudy';
-    const wState=(_wRaw==='unavailable'||_wRaw==='unknown')?'cloudy':_wRaw;
-    const cond=T.condMap[wState]||(wState==='cloudy'?T.condMap['cloudy']:wState);
+    const _wRaw=wId?this._hass.states[wId]?.state:null;
+    const wState=(_wRaw&&_wRaw!=='unavailable'&&_wRaw!=='unknown')?_wRaw:null;
+    const cond=wState?(T.condMap[wState]||wState):null;
     const wfc=wId&&this._hass.states[wId]?.attributes?.forecast;
-    // Forecast hôm nay: wfc[0] — y hệt YAML gốc
-    const _wfc0 = (wfc && wfc.length > 0) ? wfc[0] : null;
-    const tempHi = _wfc0 ? Math.round(_wfc0.temperature) : '--';
-    const tempLo = _wfc0 ? Math.round(_wfc0.templow !== undefined ? _wfc0.templow : (_wfc0.temp_low !== undefined ? _wfc0.temp_low : NaN)) : '--';
-    const condHTML=makeWeatherIcon(wState);
 
-    // Tomorrow — YAML gốc dùng sensor.tomorrow_raw_hourly, nếu không có thì dùng wfc[1]
-    // Khởi tạo từ wfc[1] trước (fallback)
-    const _wfc1 = (wfc && wfc.length > 1) ? wfc[1] : null;
-    let tmrWstate = _wfc1 && _wfc1.condition && _wfc1.condition !== 'unavailable' ? _wfc1.condition : wState;
-    let tmrW = T.condMap[tmrWstate] || T.condMap['cloudy'] || '';
-    let tmrHi = _wfc1 ? Math.round(_wfc1.temperature) : '--';
-    let tmrLo = _wfc1 ? Math.round(_wfc1.templow !== undefined ? _wfc1.templow : (_wfc1.temp_low !== undefined ? _wfc1.temp_low : NaN)) : '--';
+    // Hourly forecast entity — KHÔNG fallback hardcode, chỉ dùng nếu user cấu hình
+    const _hourlyEntityId = cfg.hourly_forecast_entity||null;
+    const _hmRaw = _hourlyEntityId ? this._hass.states[_hourlyEntityId] : null;
+    const _hmIntervals = (_hmRaw?.attributes?.timelines?.[0]?.intervals)||null;
 
-    // Override từ sensor.tomorrow_raw_hourly nếu có (như YAML gốc)
-    const _tmrRaw = this._hass.states['sensor.tomorrow_raw_hourly'];
-    if(_tmrRaw && _tmrRaw.attributes && _tmrRaw.attributes.timelines) {
-      try {
-        const intervals = _tmrRaw.attributes.timelines[0].intervals;
-        if(intervals && intervals.length) {
-          const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
-          const tmrDate = tomorrow.getDate(), tmrMonth = tomorrow.getMonth();
-          const allSlots = [], daySlots = [];
-          for(const iv of intervals) {
-            const d = new Date(iv.startTime);
-            if(d.getDate()===tmrDate && d.getMonth()===tmrMonth) {
-              allSlots.push(iv.values);
-              const h = d.getHours();
-              if(h>=6 && h<=18) daySlots.push(iv.values);
-            }
-          }
-          if(allSlots.length) {
-            const temps = allSlots.map(v=>v.temperature);
-            tmrHi = Math.round(Math.max(...temps));
-            tmrLo = Math.round(Math.min(...temps));
-            const slots = daySlots.length ? daySlots : allSlots;
-            const codeCount = {};
-            for(const s of slots) { codeCount[s.weatherCode]=(codeCount[s.weatherCode]||0)+1; }
-            let bestCode = slots[0].weatherCode, bestN = 0;
-            for(const k in codeCount) { if(codeCount[k]>bestN){bestN=codeCount[k];bestCode=parseInt(k);} }
-            const tmCodeMap = {1000:'sunny',1100:'partlycloudy',1101:'partlycloudy',1102:'cloudy',1001:'cloudy',2000:'fog',2100:'fog',4000:'rainy',4001:'rainy',4200:'rainy',4201:'pouring',8000:'lightning',8001:'lightning',8002:'lightning'};
-            tmrWstate = tmCodeMap[bestCode] || 'cloudy';
-            tmrW = T.condMap[tmrWstate] || tmrW;
+    // tempHi/Lo hôm nay: ưu tiên từ hourly sensor (slots hôm nay), fallback wfc[0], default '--'
+    let tempHi='--', tempLo='--';
+    if(_hmIntervals){
+      try{
+        const today=new Date(), todayD=today.getDate(), todayM=today.getMonth();
+        const todaySlots=[];
+        for(const iv of _hmIntervals){
+          const d=new Date(iv.startTime);
+          if(d.getDate()===todayD&&d.getMonth()===todayM) todaySlots.push(iv.values.temperature);
+        }
+        if(todaySlots.length){ tempHi=Math.round(Math.max(...todaySlots)); tempLo=Math.round(Math.min(...todaySlots)); }
+      }catch(e){}
+    }
+    if(tempHi==='--'){
+      const _wfc0=(wfc&&wfc.length>0)?wfc[0]:null;
+      if(_wfc0){
+        tempHi=Math.round(_wfc0.temperature);
+        const _tlo=_wfc0.templow!==undefined?_wfc0.templow:(_wfc0.temp_low!==undefined?_wfc0.temp_low:NaN);
+        tempLo=isNaN(_tlo)?'--':Math.round(_tlo);
+      }
+    }
+
+    const condHTML=wState?makeWeatherIcon(wState):makeWeatherIcon('cloudy');
+
+    // Tomorrow — chỉ đọc từ hourly sensor nếu được cấu hình, fallback wfc[1], default '--'
+    let tmrWstate=null, tmrW='--', tmrHi='--', tmrLo='--';
+    if(_hmIntervals){
+      try{
+        const tomorrow=new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+        const tmrDate=tomorrow.getDate(), tmrMonth=tomorrow.getMonth();
+        const allSlots=[], daySlots=[];
+        for(const iv of _hmIntervals){
+          const d=new Date(iv.startTime);
+          if(d.getDate()===tmrDate&&d.getMonth()===tmrMonth){
+            allSlots.push(iv.values);
+            const h=d.getHours();
+            if(h>=6&&h<=18) daySlots.push(iv.values);
           }
         }
-      } catch(e) {}
+        if(allSlots.length){
+          const temps=allSlots.map(v=>v.temperature);
+          tmrHi=Math.round(Math.max(...temps));
+          tmrLo=Math.round(Math.min(...temps));
+          const slots=daySlots.length?daySlots:allSlots;
+          const codeCount={};
+          for(const s of slots){codeCount[s.weatherCode]=(codeCount[s.weatherCode]||0)+1;}
+          let bestCode=slots[0].weatherCode, bestN=0;
+          for(const k in codeCount){if(codeCount[k]>bestN){bestN=codeCount[k];bestCode=parseInt(k);}}
+          const tmCodeMap={1000:'sunny',1100:'partlycloudy',1101:'partlycloudy',1102:'cloudy',1001:'cloudy',2000:'fog',2100:'fog',4000:'rainy',4001:'rainy',4200:'rainy',4201:'pouring',8000:'lightning',8001:'lightning',8002:'lightning'};
+          tmrWstate=tmCodeMap[bestCode]||'cloudy';
+          tmrW=T.condMap[tmrWstate]||tmrWstate;
+        }
+      }catch(e){}
     }
-    const tmrHTML = makeWeatherIcon(tmrWstate);
+    if(!tmrWstate){
+      const _wfc1=(wfc&&wfc.length>1)?wfc[1]:null;
+      if(_wfc1){
+        tmrWstate=(_wfc1.condition&&_wfc1.condition!=='unavailable')?_wfc1.condition:'cloudy';
+        tmrW=T.condMap[tmrWstate]||tmrWstate;
+        tmrHi=Math.round(_wfc1.temperature);
+        const _tlo1=_wfc1.templow!==undefined?_wfc1.templow:(_wfc1.temp_low!==undefined?_wfc1.temp_low:NaN);
+        tmrLo=isNaN(_tlo1)?'--':Math.round(_tlo1);
+      }
+    }
+    const tmrHTML=makeWeatherIcon(tmrWstate||'cloudy');
 
     // Solar — hỗ trợ unit W/kW
     const pv1W=this._readRawPower('solar_pv1_entity','solar_unit');
@@ -1530,8 +1860,8 @@ class SolarWeatherCard extends HTMLElement {
     const GRD_X=cfg.node_grd_x??295,GRD_Y=100,GRD_W=Math.round(92*_ns),GRD_H=Math.round(126*_ns);
     const INV_W=Math.round(106*_ns),INV_H=Math.round(130*_ns);
     const HOM_W=Math.round(106*_ns),HOM_H=Math.round(124*_ns);
-    const INV_X=120,INV_Y=220;
-    const HOM_X=120,HOM_Y=400;
+    const INV_X=120,INV_Y=cfg.node_inv_y??220;
+    const HOM_X=120,HOM_Y=cfg.node_hom_y??400;
     const BAT_CX=BAT_X+BAT_W/2,BAT_CY=BAT_Y+BAT_H/2,BAT_R=BAT_X+BAT_W,BAT_BOT=BAT_Y+BAT_H;
     const GRD_CX=GRD_X+GRD_W/2,GRD_CY=GRD_Y+GRD_H/2,GRD_L=GRD_X;
     const INV_CX=INV_X+INV_W/2,INV_TOP=INV_Y,INV_BOT=INV_Y+INV_H;
@@ -1542,7 +1872,12 @@ class SolarWeatherCard extends HTMLElement {
     const addFlow=(path,color,gc,fl)=>{
       const id=`fp-${fpIdx++}`;
       fpDefs+=`<path id="${id}" d="${path}"/>`;
-      if(isWave)     FL+=this._wave(path,id,color,gc,fl);
+      if(minimalMode){
+        // Minimal: use particle flow but with reduced count (40% of normal)
+        const minFl={...fl, count:Math.max(2,Math.round(fl.count*0.4)), size:fl.size*0.85};
+        if(isWave)     FL+=this._wave(path,id,color,gc,minFl);
+        else           FL+=this._particles(path,id,color,gc,minFl);
+      } else if(isWave)     FL+=this._wave(path,id,color,gc,fl);
       else if(isParticle) FL+=this._particles(path,id,color,gc,fl);
     };
     const addLine=(path,w,mx,c1,c2,c3)=>{ FL+=this._lineFlow(path,w,mx,c1,c2,c3); };
@@ -1583,7 +1918,8 @@ class SolarWeatherCard extends HTMLElement {
 
     const batIcoFn=(cx2,iy,aw,ah)=>{
       const bw=58,bh=26,bx0=cx2-bw/2,by0=iy+(ah-bh)/2-2,fw=Math.max(2,Math.round((bw-8)*battSoc/100));
-      let s=`<g><animateTransform attributeName="transform" type="translate" values="0,0;0,-5;0,0" dur="3s" repeatCount="indefinite" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1"/>`;
+      const floatStyle=minimalMode?'':'animation:nodeFloat 3s ease-in-out infinite;';
+      let s=`<g style="${floatStyle}transform-origin:${cx2}px ${by0+bh}px">`;
       s+=`<ellipse cx="${cx2}" cy="${by0+bh+6}" rx="25" ry="4" fill="rgba(40,230,120,.22)" filter="url(#pBlur)"/>`;
       s+=`<rect x="${bx0-1}" y="${by0-1}" width="${bw+9}" height="${bh+2}" rx="7" fill="none" stroke="rgba(40,230,160,.35)" stroke-width="7" filter="url(#pBlur)"/>`;
       s+=`<rect x="${bx0}" y="${by0}" width="${bw}" height="${bh}" rx="6" fill="rgba(0,22,14,.96)" stroke="rgba(40,230,160,.92)" stroke-width="1.5"/>`;
@@ -1601,7 +1937,8 @@ class SolarWeatherCard extends HTMLElement {
 
     const invIcoFn=(cx2,iy,aw,ah)=>{
       const iw=54,ih=46,ix=cx2-iw/2,iy0=iy+(ah-ih)/2-2;
-      let s=`<g><animateTransform attributeName="transform" type="translate" values="0,0;0,-5;0,0" dur="3.3s" begin=".55s" repeatCount="indefinite" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1"/>`;
+      const floatStyle=minimalMode?'':'animation:nodeFloat 3.3s ease-in-out .55s infinite;';
+      let s=`<g style="${floatStyle}transform-origin:${cx2}px ${iy0+ih}px">`;
       s+=`<ellipse cx="${cx2}" cy="${iy0+ih+6}" rx="22" ry="3.5" fill="rgba(140,90,255,.2)" filter="url(#pBlur)"/>`;
       s+=`<rect x="${ix}" y="${iy0}" width="${iw}" height="${ih}" rx="4" fill="none" stroke="rgba(185,145,255,.28)" stroke-width="7" filter="url(#pBlur)"/>`;
       s+=`<polygon points="${ix},${iy0} ${ix+iw},${iy0} ${ix+iw+6},${iy0-5} ${ix+6},${iy0-5}" fill="rgba(34,18,78,.92)" stroke="rgba(205,175,255,.5)" stroke-width=".9"/>`;
@@ -1639,7 +1976,8 @@ class SolarWeatherCard extends HTMLElement {
     // Grid icon — lattice tower + transformer (từ YAML v1.4.1)
     const grdIcoFn=(cx2,iy,aw,ah)=>{
       let s='<g>';
-      s+=`<animateTransform attributeName="transform" type="translate" values="0,0;0,-5;0,0" dur="2.9s" begin="1.1s" repeatCount="indefinite" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1"/>`;
+      const floatStyleG=minimalMode?'':'animation:nodeFloat 2.9s ease-in-out 1.1s infinite;';
+      s+=`<g style="${floatStyleG}transform-origin:${cx2}px ${iy+(ah*0.9)}px">`;
       const totalW=aw*0.96,startX=cx2-totalW/2;
       const tfW=totalW*0.34,gap=totalW*0.03,twW=totalW-tfW-gap;
       const twH=ah*0.90,tfX=startX+twW+gap;
@@ -1687,13 +2025,14 @@ class SolarWeatherCard extends HTMLElement {
       const finX=tfBX+tfBW+1,finH=tfH*0.72,finY=tfY+(tfH-finH)/2,finW=tfW*0.12;
       s+=`<rect x="${finX}" y="${finY}" width="${finW}" height="${finH}" rx="1.5" fill="rgba(58,107,156,.8)" stroke="rgba(26,46,68,.7)" stroke-width="0.5"/>`;
       for(let fi=0;fi<4;fi++){ const fy=finY+2+fi*(finH-4)/3; s+=`<line x1="${finX}" y1="${fy}" x2="${finX+finW}" y2="${fy}" stroke="rgba(26,46,68,.8)" stroke-width="0.6"/>`; }
-      s+='</g>'; return s;
+      s+='</g></g>'; return s;
     };
 
     const homIcoFn=(cx2,iy,aw,ah)=>{
       const sc=0.82,ox=cx2-43*sc,oy=iy+(ah-68*sc)/2;
       const p=(x,y)=>`${ox+x*sc},${oy+y*sc}`;
-      let s=`<g><animateTransform attributeName="transform" type="translate" values="0,0;0,-5;0,0" dur="3.5s" begin="1.65s" repeatCount="indefinite" calcMode="spline" keySplines=".4 0 .6 1;.4 0 .6 1"/>`;
+      const floatStyleH=minimalMode?'':'animation:nodeFloat 3.5s ease-in-out 1.65s infinite;';
+      let s=`<g style="${floatStyleH}transform-origin:${cx2}px ${oy+72*sc}px">`;
       s+=`<ellipse cx="${cx2}" cy="${oy+72*sc}" rx="${36*sc}" ry="${3.8*sc}" fill="rgba(235,145,20,.18)" filter="url(#pBlur)"/>`;
       s+=`<rect x="${ox+52*sc}" y="${oy+2*sc}" width="${6*sc}" height="${12*sc}" rx="${1.5*sc}" fill="rgba(92,40,10,.88)" stroke="rgba(218,125,34,.62)" stroke-width="${0.9*sc}"/>`;
       s+=`<polygon points="${p(2,22)} ${p(30,6)} ${p(30,9)} ${p(2,25)}" fill="rgba(8,26,56,.8)" stroke="rgba(40,178,255,.45)" stroke-width="${0.8*sc}"/>`;
@@ -1723,10 +2062,10 @@ class SolarWeatherCard extends HTMLElement {
 
     // Node cards
     const isInvActive=!invOff&&(hasSolar||hasHome||hasGrid||isCharge||isDisch);
-    const foBAT=this._svgCard(BAT_X,BAT_Y,BAT_W,BAT_H,clrNodeBat,clrNodeBatG,'rgba(0,14,8,.97)',batIcoFn,battW,battDir,`${bVolt.toFixed(0)}V DC`,isCharge||isDisch,showGlow);
-    const foINV=this._svgCard(INV_X,INV_Y,INV_W,INV_H,clrNodeInv,clrNodeInvG,'rgba(6,2,18,.97)',invIcoFn,`${gridV}V`,'AC Output',`${bVolt.toFixed(0)}V BAT · ${pvDC}V PV`,isInvActive,showGlow);
-    const foGRD=this._svgCard(GRD_X,GRD_Y,GRD_W,GRD_H,clrNodeGrd,clrNodeGrdG,'rgba(0,10,20,.97)',grdIcoFn,gridW,gridDir,`${gridV}V AC`,hasGrid,showGlow);
-    const foHOM=this._svgCard(HOM_X,HOM_Y,HOM_W,HOM_H,clrNodeHom,clrNodeHomG,'rgba(12,6,0,.97)',homIcoFn,homeW,T.homeConsume,'Home',hasHome,showGlow);
+    const foBAT=this._svgCard(BAT_X,BAT_Y,BAT_W,BAT_H,clrNodeBat,clrNodeBatG,'rgba(0,14,8,.97)',batIcoFn,battW,battDir,`${bVolt.toFixed(0)}V DC`,isCharge||isDisch,showGlow,minimalMode);
+    const foINV=this._svgCard(INV_X,INV_Y,INV_W,INV_H,clrNodeInv,clrNodeInvG,'rgba(6,2,18,.97)',invIcoFn,`${gridV}V`,'AC Output',`${bVolt.toFixed(0)}V BAT · ${pvDC}V PV`,isInvActive,showGlow,minimalMode);
+    const foGRD=this._svgCard(GRD_X,GRD_Y,GRD_W,GRD_H,clrNodeGrd,clrNodeGrdG,'rgba(0,10,20,.97)',grdIcoFn,gridW,gridDir,`${gridV}V AC`,hasGrid,showGlow,minimalMode);
+    const foHOM=this._svgCard(HOM_X,HOM_Y,HOM_W,HOM_H,clrNodeHom,clrNodeHomG,'rgba(12,6,0,.97)',homIcoFn,homeW,T.homeConsume,'Home',hasHome,showGlow,minimalMode);
 
     // ── Solar Chart SVG (cạnh node Home) ─────────────────────
     const solarChartSVG=(()=>{
@@ -1815,11 +2154,7 @@ class SolarWeatherCard extends HTMLElement {
       let s='';
       // Background
       s+=`<rect x="${cX}" y="${cY}" width="${cW}" height="${cH}" rx="10" fill="rgba(0,0,0,.4)" stroke="rgba(255,255,255,.12)" stroke-width="1"/>`;
-      // Labels above chart
-      s+=`<text x="${cx2}" y="${cY-45}" text-anchor="middle" fill="${clrChartLive}" font-size="12" font-weight="700" font-family="Inter">${T.actualToday}: ${solarTodayKwh>0?solarTodayKwh.toFixed(1):'--'} kWh</text>`;
-      s+=`<text x="${cx2}" y="${cY-25}" text-anchor="middle" fill="${clrChartFc}" font-size="12" font-weight="700" font-family="Inter">${T.forecastToday}: ${scToday>0?scToday.toFixed(1):'--'} kWh</text>`;
-      s+=`<text x="${cx2}" y="${cY-8}" text-anchor="middle" fill="rgba(72,209,255,.95)" font-size="12" font-weight="700" font-family="Inter">${T.forecastTmr}: ${scTmr>0?scTmr.toFixed(1):'--'} kWh</text>`;
-      // Legend
+      // Legend: forecast peak W and live W
       s+=`<circle cx="${cx2-52}" cy="${cY+8}" r="6" fill="${clrChartFc}"/>`;
       s+=`<text x="${cx2-43}" y="${cY+12}" fill="${clrChartFc}" font-size="13" font-weight="800" font-family="Inter">${T.peakForecast}: ${peakW}W</text>`;
       s+=`<circle cx="${cx2-52}" cy="${cY+25}" r="6" fill="${clrChartLive}"/>`;
@@ -1857,7 +2192,84 @@ class SolarWeatherCard extends HTMLElement {
       return s;
     })();
 
-    // Sky aura
+    // ── Bar Chart SVG (Actual / Forecast Today / Forecast Tomorrow) — left of Home node ──
+    const barChartSVG=(()=>{
+      const bcX = BAT_X + BAT_W - 95;
+      const bcW = HOM_X - bcX - 16;
+      const bcY = HOM_Y - 20;
+      const bcH = HOM_H + 30;
+      const bcPL=6,bcPR=6,bcPT=36,bcPB=28;
+      const bcPW=bcW-bcPL-bcPR, bcPH=bcH-bcPT-bcPB;
+
+      // Data
+      const bcActual   = parseFloat(daily)||0;
+      const bcFcToday  = parseFloat(this._gf('solcast_today_entity',0))||0;
+      const bcFcTomorrow = parseFloat(this._gf('solcast_tomorrow_entity',0))||0;
+      let bcMax = Math.max(bcActual, bcFcToday, bcFcTomorrow, 1) * 1.15;
+      // % vs forecast today (today = 100%)
+      const bcPctActual   = bcFcToday>0?Math.round(bcActual/bcFcToday*100):null;
+      const bcPctFcToday  = 100;
+      const bcPctFcTmr    = bcFcToday>0?Math.round(bcFcTomorrow/bcFcToday*100):null;
+
+      const nBars=3, barGap=bcPW*0.08;
+      const barW=(bcPW - barGap*(nBars+1))/nBars;
+      const bcBaseY=bcY+bcPT+bcPH;
+
+      const bcBars=[
+        {val:bcActual,    color:'rgba(74,222,128,1)',  label:lang==='vi'?'Thực tế':'Actual',    pct:bcPctActual},
+        {val:bcFcToday,   color:'rgba(245,166,35,1)',  label:lang==='vi'?'Hôm nay':'Today',     pct:bcPctFcToday},
+        {val:bcFcTomorrow,color:'rgba(72,209,255,1)',  label:lang==='vi'?'Ngày mai':'Tomorrow', pct:bcPctFcTmr},
+      ];
+      const bcBarX=i=>bcX+bcPL+barGap+i*(barW+barGap);
+      const bcBarH=v=>Math.max(2,v/bcMax*bcPH);
+
+      let s='';
+      // card bg
+      s+=`<rect x="${bcX}" y="${bcY}" width="${bcW}" height="${bcH}" rx="10" fill="rgba(0,0,0,.4)" stroke="rgba(255,255,255,.12)" stroke-width="1"/>`;
+      // title
+      s+=`<text x="${bcX+bcW/2}" y="${bcY+14}" text-anchor="middle" fill="rgba(255,255,255,.65)" font-size="11" font-weight="700" font-family="Inter">${lang==='vi'?'Dự báo kWh':'Forecast kWh'}</text>`;
+      // legend dots
+      const legItems=[{c:'rgba(74,222,128,1)',l:lang==='vi'?'Thực tế':'Actual'},{c:'rgba(245,166,35,1)',l:lang==='vi'?'Hôm nay':'Today'},{c:'rgba(72,209,255,1)',l:lang==='vi'?'Ngày mai':'Tmr'}];
+      const legItemW=bcW/3;
+      legItems.forEach((li,idx)=>{
+        const lx=bcX+5+idx*legItemW;
+        s+=`<circle cx="${lx+4}" cy="${bcY+24}" r="3" fill="${li.c}"/>`;
+        s+=`<text x="${lx+10}" y="${bcY+27.5}" fill="rgba(255,255,255,.5)" font-size="7.5" font-family="Inter">${li.l}</text>`;
+      });
+      // grid lines
+      for(let gi=0;gi<=4;gi++){
+        const gy=bcY+bcPT+gi*bcPH/4;
+        const gv=(bcMax*(1-gi/4)).toFixed(1);
+        s+=`<line x1="${bcX+bcPL}" y1="${gy}" x2="${bcX+bcPL+bcPW}" y2="${gy}" stroke="rgba(255,255,255,.07)" stroke-width="1"/>`;
+        if(gi<4) s+=`<text x="${bcX+bcPL-2}" y="${gy+3}" text-anchor="end" fill="rgba(255,255,255,.28)" font-size="6.5" font-family="Inter">${gv}</text>`;
+      }
+      // bars
+      bcBars.forEach((bd,bi)=>{
+        const bxPos=bcBarX(bi), bhVal=bcBarH(bd.val), byPos=bcBaseY-bhVal;
+        // glow
+        s+=`<rect x="${bxPos}" y="${byPos}" width="${barW}" height="${bhVal}" rx="3" fill="${bd.color}" opacity="0.15" filter="url(#pBlur)"/>`;
+        // body
+        s+=`<rect x="${bxPos}" y="${byPos}" width="${barW}" height="${bhVal}" rx="3" fill="${bd.color}" opacity="0.82"/>`;
+        // highlight top
+        s+=`<rect x="${bxPos}" y="${byPos}" width="${barW}" height="${Math.min(bhVal*0.35,10)}" rx="3" fill="rgba(255,255,255,.22)"/>`;
+        // border
+        s+=`<rect x="${bxPos}" y="${byPos}" width="${barW}" height="${bhVal}" rx="3" fill="none" stroke="${bd.color}" stroke-width="1.2" opacity="0.9"/>`;
+        // value label
+        s+=`<text x="${bxPos+barW/2}" y="${byPos-4}" text-anchor="middle" fill="${bd.color}" font-size="10" font-weight="800" font-family="Inter">${bd.val>0?bd.val.toFixed(1):'--'}</text>`;
+        // % vs today label — sits just above baseline, overlaid on bar
+        if(bd.pct!==null){
+          const pctColor=bd.pct===100?'rgba(255,255,255,.9)':(bd.pct>100?'rgba(74,222,128,1)':'rgba(255,80,80,1)');
+          s+=`<text x="${bxPos+barW/2}" y="${bcBaseY-4}" text-anchor="middle" fill="${pctColor}" font-size="8.5" font-weight="700" font-family="Inter">${bd.pct}%</text>`;
+        }
+        // axis label
+        s+=`<text x="${bxPos+barW/2}" y="${bcBaseY+11}" text-anchor="middle" fill="rgba(255,255,255,.45)" font-size="8.5" font-family="Inter">${bd.label}</text>`;
+      });
+      // baseline
+      s+=`<line x1="${bcX+bcPL}" y1="${bcBaseY}" x2="${bcX+bcPL+bcPW}" y2="${bcBaseY}" stroke="rgba(255,255,255,.22)" stroke-width="1"/>`;
+      return s;
+    })();
+
+
     let r1,g1,b1,r2,g2,b2;
     if(t<0.25){const p=t/0.25;r1=Math.round(30+p*20);g1=Math.round(100+p*120);b1=Math.round(200-p*80);r2=Math.round(20+p*10);g2=Math.round(80+p*80);b2=Math.round(160-p*60);}
     else if(t<0.5){const p=(t-0.25)/0.25;r1=Math.round(50+p*180);g1=Math.round(220-p*50);b1=Math.round(120-p*110);r2=Math.round(30+p*150);g2=Math.round(160-p*40);b2=Math.round(100-p*90);}
@@ -1871,9 +2283,16 @@ class SolarWeatherCard extends HTMLElement {
       const gR=255,gG=Math.round(200-bell*120),gB=Math.round(80-bell*70);
       const rC=(5+pr*5).toFixed(1),rG1=(10+pr*18).toFixed(1),rG2=(18+pr*28).toFixed(1),bd=(2.2-pr*1.75).toFixed(2);
       sunSVG=`<defs><filter id="sunF" x="-120%" y="-120%" width="340%" height="340%"><feGaussianBlur stdDeviation="${(3+pr*5).toFixed(1)}"/></filter><radialGradient id="sunCG" cx="50%" cy="40%" r="60%"><stop offset="0%" stop-color="rgba(255,255,220,.98)"/><stop offset="40%" stop-color="rgb(${cR},${cG},${cB})"/><stop offset="100%" stop-color="rgba(${gR},${gG},${gB},.6)"/></radialGradient></defs>`;
-      sunSVG+=`<circle cx="${bx}" cy="${by}" r="${rG2}" fill="rgba(${gR},${gG},${gB},.18)" filter="url(#sunF)"><animate attributeName="r" values="${rG2};${(parseFloat(rG2)*1.22).toFixed(1)};${(parseFloat(rG2)*1.08).toFixed(1)};${(parseFloat(rG2)*1.22).toFixed(1)};${rG2}" dur="${bd}s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1"/><animate attributeName="opacity" values="0.55;1;0.3;0.9;0.55" dur="${bd}s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1"/></circle>`;
-      sunSVG+=`<circle cx="${bx}" cy="${by}" r="${rG1}" fill="rgba(${gR},${gG},${gB},.55)" filter="url(#sf)"><animate attributeName="r" values="${rG1};${(parseFloat(rG1)*1.28).toFixed(1)};${(parseFloat(rG1)*1.10).toFixed(1)};${(parseFloat(rG1)*1.28).toFixed(1)};${rG1}" dur="${bd}s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1"/><animate attributeName="opacity" values="0.7;1;0.35;1;0.7" dur="${bd}s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1"/></circle>`;
-      sunSVG+=`<circle cx="${bx}" cy="${by}" r="${rC}" fill="url(#sunCG)" stroke="rgba(255,255,200,.85)" stroke-width="1.2"><animate attributeName="r" values="${rC};${(parseFloat(rC)*1.18).toFixed(1)};${rC};${(parseFloat(rC)*1.10).toFixed(1)};${rC}" dur="${bd}s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1;0.4 0 0.6 1"/></circle>`;
+      if(minimalMode){
+        // Minimal: static glow, no pulse
+        sunSVG+=`<circle cx="${bx}" cy="${by}" r="${rG2}" fill="rgba(${gR},${gG},${gB},.18)" filter="url(#sunF)" opacity="0.55"/>`;
+        sunSVG+=`<circle cx="${bx}" cy="${by}" r="${rG1}" fill="rgba(${gR},${gG},${gB},.55)" filter="url(#sf)" opacity="0.7"/>`;
+        sunSVG+=`<circle cx="${bx}" cy="${by}" r="${rC}" fill="url(#sunCG)" stroke="rgba(255,255,200,.85)" stroke-width="1.2"/>`;
+      } else {
+        sunSVG+=`<circle cx="${bx}" cy="${by}" r="${rG2}" fill="rgba(${gR},${gG},${gB},.18)" filter="url(#sunF)"><animate attributeName="r" values="${rG2};${(parseFloat(rG2)*1.18).toFixed(1)};${rG2}" dur="${bd}s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.55;0.9;0.55" dur="${bd}s" repeatCount="indefinite"/></circle>`;
+        sunSVG+=`<circle cx="${bx}" cy="${by}" r="${rG1}" fill="rgba(${gR},${gG},${gB},.55)" filter="url(#sf)"><animate attributeName="r" values="${rG1};${(parseFloat(rG1)*1.22).toFixed(1)};${rG1}" dur="${bd}s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.7;1;0.7" dur="${bd}s" repeatCount="indefinite"/></circle>`;
+        sunSVG+=`<circle cx="${bx}" cy="${by}" r="${rC}" fill="url(#sunCG)" stroke="rgba(255,255,200,.85)" stroke-width="1.2"><animate attributeName="r" values="${rC};${(parseFloat(rC)*1.12).toFixed(1)};${rC}" dur="${bd}s" repeatCount="indefinite"/></circle>`;
+      }
     }
 
     // Moon
@@ -1889,15 +2308,15 @@ class SolarWeatherCard extends HTMLElement {
 
     const tickMsg=T.ticker(wState,daily,dailyuse,savFmtUse,currency,bPct,isCharge,isDisch,battSoc);
     const ticker2=tickMsg+'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'+tickMsg;
-    const cell='background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:10px 6px;text-align:center;';
-    const lbl='font-size:10px;color:rgba(255,255,255,.45);margin-top:2px;white-space:nowrap;';
-    const val='font-size:13px;font-weight:700;white-space:nowrap;';
-    const ico='font-size:16px;margin-bottom:3px;';
-    const bg=`linear-gradient(135deg,rgba(0,20,30,${bgOp}) 0%,rgba(0,40,50,${(bgOp*0.78).toFixed(2)}) 100%)`;
 
     this.shadowRoot.innerHTML=`
 <style>:host{display:block}*{box-sizing:border-box;margin:0;padding:0}
 @keyframes scrollTicker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes nodeFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+${minimalMode?`
+/* Minimal mode: kill all animations */
+*,*::before,*::after{animation-duration:0.001s!important;animation-iteration-count:1!important;transition-duration:0s!important;}
+`:``}
 </style>
 <div style="font-family:Inter,-apple-system,sans-serif;color:${clrTextPrim};
   background:${bg};backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
@@ -1907,24 +2326,52 @@ class SolarWeatherCard extends HTMLElement {
 
   ${showInfo?`<div style="padding:18px 16px 14px;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);">
     <div style="display:grid;grid-template-columns:80px 1fr 40px;align-items:center;margin-bottom:12px;">
-      <div>${condHTML}</div>
+      <div>${wState?condHTML:'<div style="width:70px;height:70px;display:flex;align-items:center;justify-content:center;font-size:28px;opacity:.25;">🌤️</div>'}</div>
       <div style="text-align:center;">
         <div style="font-size:80px;font-weight:800;line-height:1;letter-spacing:-3px;text-shadow:0 2px 20px rgba(255,255,255,.25);"><span id="live-clock">${hh}:${mm}</span><span id="live-ap" style="font-size:28px;font-weight:400;opacity:.55;margin-left:4px;">${ap}</span></div>
         <div style="font-size:18px;color:rgba(255,255,255,.55);margin-top:3px;">${dateStr}</div>
       </div><div></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 0;font-size:12px;color:rgba(255,255,255,.6);margin-bottom:8px;">
-      <div>${cond}</div>
-      <div style="text-align:right;">${tempHi!=='--'?`⚡ <span style="color:#fff;font-weight:600;">${tempHi}°</span> / <span style="color:rgba(255,255,255,.6);">${tempLo}°C</span>`:''}</div>
-      <div>${temp!==null?`🌡️ <span style="color:#fff;font-weight:600;">${temp}°C</span>`:''}${temp!==null&&humid!==null?' &nbsp;':''}${humid!==null?`💧 <span style="color:#fff;font-weight:600;">${humid}%</span>`:''}</div>
+      <div>${cond||'--'}</div>
+      <div style="text-align:right;">${(tempHi!=='--')?`⚡ <span style="color:#fff;font-weight:600;">${tempHi}°</span> / <span style="color:rgba(255,255,255,.6);">${tempLo}°C</span>`:'<span style="color:rgba(255,255,255,.35);">-- / --°C</span>'}</div>
+      <div>${temp!==null?`🌡️ <span style="color:#fff;font-weight:600;">${temp}°C</span>`:'<span style="color:rgba(255,255,255,.35);">🌡️ --°C</span>'}${(temp!==null||humid!==null)?` &nbsp;`:''} ${humid!==null?`💧 <span style="color:#fff;font-weight:600;">${humid}%</span>`:'<span style="color:rgba(255,255,255,.35);">💧 --%</span>'}</div>
       <div style="text-align:right;">${uv!==null?`UV <span style="color:#fff;font-weight:600;">${uv}</span> &nbsp;`:''}${press!==null?`🌬️ <span style="color:#fff;font-weight:600;">${press} hPa</span>`:''}</div>
-      ${rain?`<div style="color:rgba(255,255,255,.5);font-size:11px;grid-column:1/-1;">🌧️ <span style="color:rgba(255,220,100,.9);font-weight:600;">${rain}</span></div>`:''}
     </div>
+    ${showHourlyForecast?(()=>{
+      // Only use hourly_forecast_entity if configured — no fallback
+      if(!cfg.hourly_forecast_entity) return '';
+      let hourlySlots=[];
+      try {
+        const rawH=this._hass.states[cfg.hourly_forecast_entity];
+        if(rawH&&rawH.attributes&&rawH.attributes.timelines){
+          const ivs=rawH.attributes.timelines[0].intervals;
+          const nowMs=Date.now();
+          const tmIcons={1000:'☀️',1100:'🌤️',1101:'⛅',1102:'☁️',1001:'☁️',2000:'🌫️',2100:'🌫️',4000:'🌧️',4001:'🌧️',4200:'🌦️',4201:'🌧️',8000:'⛈️',8001:'⛈️',8002:'⛈️'};
+          // Night variants: clear/partly-clear → moon; cloudy/rain/storm keep as-is
+          const tmIconsNight={1000:'🌙',1100:'🌙',1101:'⛅',1102:'☁️',1001:'☁️',2000:'🌫️',2100:'🌫️',4000:'🌧️',4001:'🌧️',4200:'🌦️',4201:'🌧️',8000:'⛈️',8001:'⛈️',8002:'⛈️'};
+          let cnt=0;
+          for(const iv of ivs){
+            if(cnt>=6) break;
+            if(new Date(iv.startTime).getTime()<nowMs) continue;
+            const slotH=new Date(iv.startTime).getHours();
+            const isNightSlot=slotH>=18||slotH<6;
+            const iconMap=isNightSlot?tmIconsNight:tmIcons;
+            hourlySlots.push({h:slotH,t:Math.round(iv.values.temperature),ic:iconMap[iv.values.weatherCode]||'🌤️'});
+            cnt++;
+          }
+        }
+      } catch(e){}
+      if(!hourlySlots.length) return '';
+      return `<div style="display:flex;gap:2px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:6px 4px;margin-bottom:8px;">${
+        hourlySlots.map(sl=>`<div style="text-align:center;flex:1;"><div style="font-size:10px;color:rgba(255,255,255,.45);">${sl.h}h</div><div style="font-size:13px;line-height:1.3;">${sl.ic}</div><div style="font-size:10px;font-weight:700;color:#fff;">${sl.t}°</div></div>`).join('')
+      }</div>`;
+    })():''}
     ${showTmr?`<div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:7px 11px;font-size:11.5px;">
       <span style="color:rgba(255,255,255,.45);">${T.tomorrow}</span>
       <div style="transform:scale(0.55);transform-origin:center center;width:40px;height:25px;flex-shrink:0;position:relative;top:-18px;">${tmrHTML}</div>
-      <span style="color:#fff;font-weight:600;">${tmrW}</span>
-      ${tmrHi!=='--'?`<span style="margin-left:auto;color:#fff;font-weight:600;">${tmrHi}°</span><span style="color:rgba(255,255,255,.45);">/</span><span style="color:rgba(255,255,255,.65);">${tmrLo}°C</span>`:''}
+      <span style="color:#fff;font-weight:600;">${tmrWstate?tmrW:'--'}</span>
+      ${tmrHi!=='--'?`<span style="margin-left:auto;color:#fff;font-weight:600;">${tmrHi}°</span><span style="color:rgba(255,255,255,.45);">/</span><span style="color:rgba(255,255,255,.65);">${tmrLo}°C</span>`:'<span style="margin-left:auto;color:rgba(255,255,255,.35);">-- / --°C</span>'}
     </div>`:''}
   </div>`:`
   <div style="padding:16px 16px 14px;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);">
@@ -1948,11 +2395,11 @@ class SolarWeatherCard extends HTMLElement {
       <div style="flex:1;padding:5px 0;border-radius:20px;text-align:center;font-size:10.5px;font-weight:600;background:rgba(255,200,70,.15);border:1px solid rgba(255,200,70,.35);color:rgba(255,225,110,.95);">☀️ ${T.daytime}: ${fmtDur(dayMin)}</div>
       <div style="flex:1;padding:5px 0;border-radius:20px;text-align:center;font-size:10.5px;font-weight:600;background:rgba(140,175,255,.12);border:1px solid rgba(140,175,255,.3);color:rgba(185,210,255,.9);">🌙 ${T.nighttime}: ${fmtDur(nightMin)}</div>
     </div>
-    <div style="position:relative;width:100%;height:500px;">
-      <svg viewBox="0 0 346 530" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;">
+    <div style="position:relative;width:100%;height:500px;contain:layout style;">
+      <svg viewBox="0 0 346 530" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;will-change:transform;">
         <defs>
-          <filter id="pBlur" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="4"/></filter>
-          <filter id="pBlurSm" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="1.5"/></filter>
+          <filter id="pBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+          <filter id="pBlurSm" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.5"/></filter>
           <filter id="sf"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
           <filter id="mf"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
           <filter id="tf" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceAlpha" stdDeviation="2" result="b"/><feFlood flood-color="rgba(0,0,0,.55)" result="c"/><feComposite in="c" in2="b" operator="in" result="d"/><feMerge><feMergeNode in="d"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
@@ -1979,6 +2426,7 @@ class SolarWeatherCard extends HTMLElement {
         ${moonSVG}
         ${FL}
         ${foBAT}${foINV}${foGRD}${foHOM}
+        ${showForecastChart?barChartSVG:''}
         ${showForecastChart?solarChartSVG:''}
       </svg>
     </div>
@@ -1994,9 +2442,9 @@ class SolarWeatherCard extends HTMLElement {
     </div>
     ${battETA?`<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.65);margin-bottom:14px;">${battETA}</div>`:''}
 
-    <div style="overflow:hidden;white-space:nowrap;border-top:1px solid rgba(255,255,255,.10);border-bottom:1px solid rgba(255,255,255,.10);padding:7px 0;margin:0 0 14px;">
-      <div style="display:inline-block;animation:scrollTicker 22s linear infinite;font-size:12px;font-weight:600;color:rgba(255,230,120,.95);text-shadow:0 1px 6px rgba(0,0,0,.5);">${ticker2}</div>
-    </div>
+    ${!minimalMode?`<div style="overflow:hidden;white-space:nowrap;border-top:1px solid rgba(255,255,255,.10);border-bottom:1px solid rgba(255,255,255,.10);padding:7px 0;margin:0 0 14px;">
+      <div style="display:inline-block;animation:scrollTicker 22s linear infinite;font-size:12px;font-weight:600;color:rgba(255,230,120,.95);text-shadow:0 1px 6px rgba(0,0,0,.5);will-change:transform;">${ticker2}</div>
+    </div>`:'<div style="height:4px"></div>'}
 
     ${(()=>{
       // ── Stats circles SVG (design from v1.6 YAML) ──────────
@@ -2169,9 +2617,8 @@ window.customCards=window.customCards||[];
 window.customCards.push({
   type:'solar-weather-card',
   name:'Solar Weather Card',
-  description:'Solar + Battery + Weather — particle/wave/line flow, 5 languages (VI/EN/DE/IT/FR), custom pricing, node glow toggle',
+  description:'Solar + Battery + Weather — particle/wave/line flow, 5 languages (VI/EN/DE/IT/FR), bar chart, minimal mode, background presets, custom pricing, node glow & Y-axis layout',
   preview:false,
   documentationURL:'https://github.com/doanlong1412/solar-weather-card',
 });
-
 
