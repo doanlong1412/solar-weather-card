@@ -231,6 +231,134 @@ const I18N = {
       else if(isDisch&&battSoc<20) msg+=` ⚠️ Batterie faible (${bPct}%) !`;
       return msg;
     }
+  },
+  nl: {
+    tomorrow:'Morgen', sunrise:'Opkomst', sunset:'Ondergang', dayPct:'van de dag',
+    daytime:'Overdag', nighttime:'Nacht',
+    charging:'🔋⚡ Opladen', discharging:'🔋🔁 Ontladen', standby:'⏳ Stand-by',
+    exportGrid:'Teruglevering', importGrid:'Netwerk',
+    homeConsume:'Verbruik', battLabel:'🔋 Accu',
+    etaFull:'⚡ Geschatte voltijd: ', etaLeft:'🔁 Resterende tijd: ',
+    slowCharge:'⚡ Laadt zeer langzaam', slowDisch:'🔁 Ontlaadt zeer langzaam',
+    solarStat:'Solar', gridStat:'Van net', consumeStat:'Verbruik',
+    savingStat:'Besparing', systemStat:'⚙️ SYSTEEM', statsTitle:'Statistieken vandaag',
+    solarProduced:'Solar', solarUsed:'Thuis gebruikt',
+    forecastToday:'☀️ Prognose vandaag', forecastTmr:'☀️ Prognose morgen',
+    actualToday:'☀️ Werkelijk vandaag', peakForecast:'Prognose', actualNow:'Werkelijk',
+    condMap:{'sunny':'☀️ Zonnig','clear-night':'🌙 Heldere nacht','partlycloudy':'⛅ Gedeeltelijk bewolkt','cloudy':'☁️ Bewolkt','rainy':'🌧️ Regenachtig','pouring':'⛈️ Zware regen','lightning':'⚡ Onweer','fog':'🌫️ Mistig','windy':'💨 Winderig'},
+    days:['Zondag','Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag'],
+    months:['Jan','Feb','Mrt','Apr','Mei','Jun','Jul','Aug','Sep','Okt','Nov','Dec'],
+    ticker(ws,daily,dailyuse,savFmt,cur,bPct,isCharge,isDisch,battSoc){
+      const kw=parseFloat(daily); let msg='';
+      if(ws==='rainy'||ws==='pouring') msg=`🌧️ Regenachtige dag, solar beperkt${kw>0?' — geproduceerd '+daily+' kWh':''}.`;
+      else if(ws==='lightning') msg='⛈️ Slecht weer, solar gepauzeerd.';
+      else if(ws==='cloudy') msg=`☁️ Bewolkt, solar verminderd${kw>0?' — '+daily+' kWh':''}.`;
+      else if(ws==='partlycloudy') msg=`⛅ Gedeeltelijk bewolkt — geproduceerd ${daily} kWh, thuis gebruikt ${dailyuse} kWh.`;
+      else if(ws==='sunny'){ if(kw>15) msg=`☀️ Prachtige dag — geproduceerd ${daily} kWh, thuis ${dailyuse} kWh!`; else msg=`☀️ Zonnige dag — ${daily} kWh geproduceerd, thuis ${dailyuse} kWh.`; }
+      else if(ws==='fog') msg='🌫️ Dichte mist, slechte zonneprestaties.';
+      else if(ws==='windy') msg=`💨 Winderig, solar normaal — geproduceerd ${daily} kWh.`;
+      else msg=`🌤️ Solar produceerde ${daily} kWh, thuis ${dailyuse} kWh — bespaard ${savFmt}${cur}.`;
+      if(battSoc===100) msg+=' ✅ Accu vol!';
+      else if(isCharge&&battSoc>80) msg+=` 🔋 Oplaadend, bijna vol (${bPct}%).`;
+      else if(isDisch&&battSoc<20) msg+=` ⚠️ Accu laag (${bPct}%)!`;
+      return msg;
+    }
+  },
+  pl: {
+    tomorrow:'Jutro', sunrise:'Wschód', sunset:'Zachód', dayPct:'dnia',
+    daytime:'Dzień', nighttime:'Noc',
+    charging:'🔋⚡ Ładowanie', discharging:'🔋🔁 Rozładowanie', standby:'⏳ Czuwanie',
+    exportGrid:'Eksport', importGrid:'Sieć',
+    homeConsume:'Zużycie', battLabel:'🔋 Bateria',
+    etaFull:'⚡ Szacowany czas do pełna: ', etaLeft:'🔁 Pozostały czas: ',
+    slowCharge:'⚡ Ładuje się bardzo wolno', slowDisch:'🔁 Rozładowuje się bardzo wolno',
+    solarStat:'Solar', gridStat:'Z sieci', consumeStat:'Zużycie',
+    savingStat:'Oszczędności', systemStat:'⚙️ SYSTEM', statsTitle:'Statystyki dzisiaj',
+    solarProduced:'Solar', solarUsed:'Zużyto w domu',
+    forecastToday:'☀️ Prognoza dzisiaj', forecastTmr:'☀️ Prognoza jutro',
+    actualToday:'☀️ Rzeczywiste dzisiaj', peakForecast:'Prognoza', actualNow:'Rzeczywiste',
+    condMap:{'sunny':'☀️ Słonecznie','clear-night':'🌙 Bezchmurna noc','partlycloudy':'⛅ Częściowo zachmurzony','cloudy':'☁️ Zachmurzony','rainy':'🌧️ Deszczowo','pouring':'⛈️ Ulewny deszcz','lightning':'⚡ Burza','fog':'🌫️ Mgła','windy':'💨 Wietrzno'},
+    days:['Niedziela','Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota'],
+    months:['Sty','Lut','Mar','Kwi','Maj','Cze','Lip','Sie','Wrz','Paź','Lis','Gru'],
+    ticker(ws,daily,dailyuse,savFmt,cur,bPct,isCharge,isDisch,battSoc){
+      const kw=parseFloat(daily); let msg='';
+      if(ws==='rainy'||ws==='pouring') msg=`🌧️ Deszczowy dzień, solar ograniczony${kw>0?' — wyprodukowano '+daily+' kWh':''}.`;
+      else if(ws==='lightning') msg='⛈️ Zła pogoda, solar wstrzymany.';
+      else if(ws==='cloudy') msg=`☁️ Zachmurzenie, solar zmniejszony${kw>0?' — '+daily+' kWh':''}.`;
+      else if(ws==='partlycloudy') msg=`⛅ Częściowe zachmurzenie — wyprodukowano ${daily} kWh, dom zużył ${dailyuse} kWh.`;
+      else if(ws==='sunny'){ if(kw>15) msg=`☀️ Piękny dzień — wyprodukowano ${daily} kWh, dom ${dailyuse} kWh!`; else msg=`☀️ Słoneczny dzień — ${daily} kWh, dom ${dailyuse} kWh.`; }
+      else if(ws==='fog') msg='🌫️ Gęsta mgła, słaba wydajność solarna.';
+      else if(ws==='windy') msg=`💨 Wietrzno, solar normalny — wyprodukowano ${daily} kWh.`;
+      else msg=`🌤️ Solar wyprodukował ${daily} kWh, dom ${dailyuse} kWh — zaoszczędzono ${savFmt}${cur}.`;
+      if(battSoc===100) msg+=' ✅ Bateria pełna!';
+      else if(isCharge&&battSoc>80) msg+=` 🔋 Ładowanie, prawie pełna (${bPct}%).`;
+      else if(isDisch&&battSoc<20) msg+=` ⚠️ Bateria niska (${bPct}%)!`;
+      return msg;
+    }
+  },
+  sv: {
+    tomorrow:'Imorgon', sunrise:'Soluppgång', sunset:'Solnedgång', dayPct:'av dagen',
+    daytime:'Dagtid', nighttime:'Nattid',
+    charging:'🔋⚡ Laddar', discharging:'🔋🔁 Urladdning', standby:'⏳ Standby',
+    exportGrid:'Export', importGrid:'Elnät',
+    homeConsume:'Förbrukning', battLabel:'🔋 Batteri',
+    etaFull:'⚡ Uppskattad full om: ', etaLeft:'🔁 Återstående tid: ',
+    slowCharge:'⚡ Laddar mycket långsamt', slowDisch:'🔁 Urladdning mycket långsam',
+    solarStat:'Solar', gridStat:'Från nät', consumeStat:'Förbrukning',
+    savingStat:'Besparing', systemStat:'⚙️ SYSTEM', statsTitle:'Statistik idag',
+    solarProduced:'Solar', solarUsed:'Hem använt',
+    forecastToday:'☀️ Prognos idag', forecastTmr:'☀️ Prognos imorgon',
+    actualToday:'☀️ Faktisk idag', peakForecast:'Prognos', actualNow:'Faktisk',
+    condMap:{'sunny':'☀️ Soligt','clear-night':'🌙 Klar natt','partlycloudy':'⛅ Delvis molnigt','cloudy':'☁️ Molnigt','rainy':'🌧️ Regnigt','pouring':'⛈️ Häftigt regn','lightning':'⚡ Åska','fog':'🌫️ Dimmigt','windy':'💨 Blåsigt'},
+    days:['Söndag','Måndag','Tisdag','Onsdag','Torsdag','Fredag','Lördag'],
+    months:['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Aug','Sep','Okt','Nov','Dec'],
+    ticker(ws,daily,dailyuse,savFmt,cur,bPct,isCharge,isDisch,battSoc){
+      const kw=parseFloat(daily); let msg='';
+      if(ws==='rainy'||ws==='pouring') msg=`🌧️ Regnig dag, solar begränsad${kw>0?' — producerade '+daily+' kWh':''}.`;
+      else if(ws==='lightning') msg='⛈️ Dåligt väder, solar pausad.';
+      else if(ws==='cloudy') msg=`☁️ Molnigt, solar reducerad${kw>0?' — '+daily+' kWh':''}.`;
+      else if(ws==='partlycloudy') msg=`⛅ Delvis molnigt — producerade ${daily} kWh, hem använde ${dailyuse} kWh.`;
+      else if(ws==='sunny'){ if(kw>15) msg=`☀️ Fantastisk dag — producerade ${daily} kWh, hem ${dailyuse} kWh!`; else msg=`☀️ Solig dag — ${daily} kWh producerade, hem ${dailyuse} kWh.`; }
+      else if(ws==='fog') msg='🌫️ Tät dimma, dålig solandeprestanda.';
+      else if(ws==='windy') msg=`💨 Blåsigt, solar normal — producerade ${daily} kWh.`;
+      else msg=`🌤️ Solar producerade ${daily} kWh, hem ${dailyuse} kWh — sparade ${savFmt}${cur}.`;
+      if(battSoc===100) msg+=' ✅ Batteri fullt!';
+      else if(isCharge&&battSoc>80) msg+=` 🔋 Laddar, nästan fullt (${bPct}%).`;
+      else if(isDisch&&battSoc<20) msg+=` ⚠️ Batteri lågt (${bPct}%)!`;
+      return msg;
+    }
+  },
+  hu: {
+    tomorrow:'Holnap', sunrise:'Napkelte', sunset:'Napnyugta', dayPct:'a napból',
+    daytime:'Nappal', nighttime:'Éjszaka',
+    charging:'🔋⚡ Töltés', discharging:'🔋🔁 Merülés', standby:'⏳ Készenléti',
+    exportGrid:'Export', importGrid:'Hálózat',
+    homeConsume:'Fogyasztás', battLabel:'🔋 Akkumulátor',
+    etaFull:'⚡ Becsült teli idő: ', etaLeft:'🔁 Maradék idő: ',
+    slowCharge:'⚡ Nagyon lassan tölt', slowDisch:'🔁 Nagyon lassan merül',
+    solarStat:'Napelem', gridStat:'Hálózatból', consumeStat:'Fogyasztás',
+    savingStat:'Megtakarítás', systemStat:'⚙️ RENDSZER', statsTitle:'Mai statisztikák',
+    solarProduced:'Napelem', solarUsed:'Otthon használt',
+    forecastToday:'☀️ Előrejelzés ma', forecastTmr:'☀️ Előrejelzés holnap',
+    actualToday:'☀️ Tényleges ma', peakForecast:'Előrejelzés', actualNow:'Tényleges',
+    condMap:{'sunny':'☀️ Napos','clear-night':'🌙 Tiszta éjszaka','partlycloudy':'⛅ Részben felhős','cloudy':'☁️ Felhős','rainy':'🌧️ Esős','pouring':'⛈️ Zápor','lightning':'⚡ Vihar','fog':'🌫️ Ködös','windy':'💨 Szeles'},
+    days:['Vasárnap','Hétfő','Kedd','Szerda','Csütörtök','Péntek','Szombat'],
+    months:['Jan','Feb','Már','Ápr','Máj','Jún','Júl','Aug','Szep','Okt','Nov','Dec'],
+    ticker(ws,daily,dailyuse,savFmt,cur,bPct,isCharge,isDisch,battSoc){
+      const kw=parseFloat(daily); let msg='';
+      if(ws==='rainy'||ws==='pouring') msg=`🌧️ Esős nap, napelem korlátozott${kw>0?' — termelt '+daily+' kWh':''}.`;
+      else if(ws==='lightning') msg='⛈️ Rossz idő, napelem szünetel.';
+      else if(ws==='cloudy') msg=`☁️ Felhős, napelem csökkentett${kw>0?' — '+daily+' kWh':''}.`;
+      else if(ws==='partlycloudy') msg=`⛅ Részben felhős — termelt ${daily} kWh, otthon felhasznált ${dailyuse} kWh.`;
+      else if(ws==='sunny'){ if(kw>15) msg=`☀️ Gyönyörű nap — termelt ${daily} kWh, otthon ${dailyuse} kWh!`; else msg=`☀️ Napos nap — ${daily} kWh termelt, otthon ${dailyuse} kWh.`; }
+      else if(ws==='fog') msg='🌫️ Sűrű köd, gyenge napelemi teljesítmény.';
+      else if(ws==='windy') msg=`💨 Szeles, napelem normális — termelt ${daily} kWh.`;
+      else msg=`🌤️ Napelem termelt ${daily} kWh, otthon ${dailyuse} kWh — megtakarítva ${savFmt}${cur}.`;
+      if(battSoc===100) msg+=' ✅ Akkumulátor tele!';
+      else if(isCharge&&battSoc>80) msg+=` 🔋 Töltés, majdnem tele (${bPct}%).`;
+      else if(isDisch&&battSoc<20) msg+=` ⚠️ Akkumulátor alacsony (${bPct}%)!`;
+      return msg;
+    }
   }
 };
 
@@ -349,6 +477,7 @@ class SolarWeatherCardEditor extends HTMLElement {
         {k:'grid_export_entity',       l:'🔌 Grid export sensor (W)',         r:false, domain:'sensor'},
         {k:'grid_voltage_entity',      l:'🔌 Grid voltage (V AC)',            r:false, domain:'sensor'},
         {k:'grid_today_entity',        l:'🔌 Grid import today (kWh)',        r:false, domain:'sensor'},
+        {k:'grid_export_today_entity', l:'⚡ Grid export today / Bán điện (kWh)', r:false, domain:'sensor'},
         {k:'home_consumption_entity',  l:'🏠 Home consumption (W)',           r:true,  domain:'sensor'},
         {k:'consumption_today_entity', l:'📊 Consumption today (kWh)',        r:false, domain:'sensor'},
         {k:'inverter_switch_entity',   l:'🔘 Inverter switch (grid-direct)',  r:false, domain:'switch'},
@@ -567,6 +696,7 @@ class SolarWeatherCardEditor extends HTMLElement {
         sensorMode:'Chế độ cảm biến', invertDir:'🔄 Đảo chiều (Deye/Growatt)',
         gridPowerUnit:'Đơn vị công suất lưới', homePowerUnit:'Đơn vị công suất nhà',
         battPowerUnit:'Đơn vị công suất', gridOptions:'🔌 TUỲ CHỌN LƯỚI', homeOptions:'🏠 TUỲ CHỌN NHÀ',
+        timeFormat:'🕐 Định dạng giờ',
       },
       en:{
         displayOpts:'🎨 Display Options', flowStyle:'🌊 Flow style',
@@ -595,6 +725,7 @@ class SolarWeatherCardEditor extends HTMLElement {
         sensorMode:'Sensor mode', invertDir:'🔄 Invert direction (Deye/Growatt)',
         gridPowerUnit:'Grid power unit', homePowerUnit:'Home power unit',
         battPowerUnit:'Power unit', gridOptions:'🔌 GRID OPTIONS', homeOptions:'🏠 HOME OPTIONS',
+        timeFormat:'🕐 Time format',
       },
       de:{
         displayOpts:'🎨 Anzeigeoptionen', flowStyle:'🌊 Flussstil',
@@ -623,6 +754,7 @@ class SolarWeatherCardEditor extends HTMLElement {
         sensorMode:'Sensormodus', invertDir:'🔄 Richtung umkehren (Deye/Growatt)',
         gridPowerUnit:'Netz-Leistungseinheit', homePowerUnit:'Haus-Leistungseinheit',
         battPowerUnit:'Leistungseinheit', gridOptions:'🔌 NETZOPTIONEN', homeOptions:'🏠 HAUSOPTIONEN',
+        timeFormat:'🕐 Zeitformat',
       },
       it:{
         displayOpts:'🎨 Opzioni di visualizzazione', flowStyle:'🌊 Stile flusso',
@@ -651,6 +783,7 @@ class SolarWeatherCardEditor extends HTMLElement {
         sensorMode:'Modalità sensore', invertDir:'🔄 Inverti direzione (Deye/Growatt)',
         gridPowerUnit:'Unità potenza rete', homePowerUnit:'Unità potenza casa',
         battPowerUnit:'Unità potenza', gridOptions:'🔌 OPZIONI RETE', homeOptions:'🏠 OPZIONI CASA',
+        timeFormat:'🕐 Formato ora',
       },
       fr:{
         displayOpts:'🎨 Options d\'affichage', flowStyle:'🌊 Style de flux',
@@ -679,6 +812,123 @@ class SolarWeatherCardEditor extends HTMLElement {
         sensorMode:'Mode capteur', invertDir:'🔄 Inverser direction (Deye/Growatt)',
         gridPowerUnit:'Unité puissance réseau', homePowerUnit:'Unité puissance maison',
         battPowerUnit:'Unité puissance', gridOptions:'🔌 OPTIONS RÉSEAU', homeOptions:'🏠 OPTIONS MAISON',
+        timeFormat:'🕐 Format heure',
+      },
+      nl:{
+        displayOpts:'🎨 Weergaveopties', flowStyle:'🌊 Stroomstijl',
+        language:'🌐 Taal / Language / Sprache / Lingua',
+        bgOpacity:'🪟 Achtergrondtransparantie', showWeatherInfo:'☁️ Weerpaneel tonen',
+        showTomorrow:'🌤️ Morgenprognose tonen', nodeGlow:'✨ Node-gloedeffect',
+        showForecastChart:'📊 Solarprognose-diagram tonen', showHourlyStrip:'🕐 Uurlijkse prognose tonen',
+        minimalMode:'🪄 Minimale modus (animaties verminderen)',
+        pricingTitle:'💰 Tarieven & Valuta', currencyLabel:'💱 Valutasymbool (standaard: đ)',
+        pricingTiersLabel:'📊 Aangepaste tariefniveaus (optioneel)',
+        pricingHint:'Formaat: <code>limiet_kWh:tarief</code>, kommagescheiden. Leeg = Vietnam EVN standaard.',
+        layoutTitle:'📐 Node-indeling',
+        layoutHint:'Aanpassen als Batterij of Net-node wordt afgesneden op kleine schermen.',
+        batNodeX:'🔋 Batterij-node X', grdNodeX:'🔌 Net-node X',
+        invNodeY:'⚙️ Omvormer-node Y', homNodeY:'🏠 Huis-node Y',
+        nodeScale:'📐 Node-schaal (alle 4)', particleDensity:'✦ Deeltjesdichtheid (>1kW)',
+        layoutDefault:'Standaard: Batterij X = <strong>-40</strong>, Net X = <strong>295</strong>, Omvormer Y = <strong>210</strong>, Huis Y = <strong>410</strong>.',
+        colorTitle:'🎨 Kleurthema', bgGradient:'🌈 ACHTERGRONDVERLOOP', preset:'Preset',
+        nodeBorderColors:'⬡ NODE RANDKLEUREN', flowColors:'〰️ STROOM / DEELTJESKLEUREN',
+        chartColors:'📊 DIAGRAMKLEUREN', textColor:'🔤 TEKSTKLEUR',
+        fcLine:'📈 Prognoselijn', liveActualLine:'📉 Werkelijke lijn',
+        primaryText:'🔤 Primaire tekst', resetColors:'↺ Standaard herstellen',
+        color1:'🎨 Kleur 1 (linksboven)', color2:'🎨 Kleur 2 (rechtsonder)',
+        solarPowerUnit:'☀️ Solar vermogenseenheid', solarDesignCap:'⚡ Solar ontwerpcapaciteit (Wp) — Y-as',
+        solarDesignHint:'Totale ontwerpcapaciteit (Wp). Leeg = auto 8000W.',
+        sensorMode:'Sensormodus', invertDir:'🔄 Richting omkeren (Deye/Growatt)',
+        gridPowerUnit:'Net vermogenseenheid', homePowerUnit:'Huis vermogenseenheid',
+        battPowerUnit:'Vermogenseenheid', gridOptions:'🔌 NETOPTIES', homeOptions:'🏠 HUISOPTIES',
+        timeFormat:'🕐 Tijdformaat',
+      },
+      pl:{
+        displayOpts:'🎨 Opcje wyświetlania', flowStyle:'🌊 Styl przepływu',
+        language:'🌐 Język / Language / Sprache / Lingua',
+        bgOpacity:'🪟 Przezroczystość tła', showWeatherInfo:'☁️ Pokaż panel pogody',
+        showTomorrow:'🌤️ Pokaż jutrzejszą prognozę', nodeGlow:'✨ Efekt poświaty węzłów',
+        showForecastChart:'📊 Pokaż wykres prognozy solarnej', showHourlyStrip:'🕐 Pokaż pasek godzinowy',
+        minimalMode:'🪄 Tryb minimalny (zredukuj animacje)',
+        pricingTitle:'💰 Ceny & Waluta', currencyLabel:'💱 Symbol waluty (domyślnie: đ)',
+        pricingTiersLabel:'📊 Niestandardowe poziomy cenowe (opcjonalne)',
+        pricingHint:'Format: <code>limit_kWh:stawka</code>, oddzielone przecinkiem. Puste = domyślny EVN Vietnam.',
+        layoutTitle:'📐 Układ węzłów',
+        layoutHint:'Dostosuj jeśli węzeł Bateria lub Sieć jest odcięty na małych ekranach.',
+        batNodeX:'🔋 Węzeł baterii X', grdNodeX:'🔌 Węzeł sieci X',
+        invNodeY:'⚙️ Węzeł falownika Y', homNodeY:'🏠 Węzeł domu Y',
+        nodeScale:'📐 Skala węzłów (wszystkie 4)', particleDensity:'✦ Gęstość cząstek (>1kW)',
+        layoutDefault:'Domyślnie: Bateria X = <strong>-40</strong>, Sieć X = <strong>295</strong>, Falownik Y = <strong>210</strong>, Dom Y = <strong>410</strong>.',
+        colorTitle:'🎨 Motyw kolorów', bgGradient:'🌈 GRADIENT TŁA', preset:'Preset',
+        nodeBorderColors:'⬡ KOLORY OBRAMOWANIA WĘZŁÓW', flowColors:'〰️ KOLORY PRZEPŁYWU / CZĄSTEK',
+        chartColors:'📊 KOLORY WYKRESÓW', textColor:'🔤 KOLOR TEKSTU',
+        fcLine:'📈 Linia prognozy', liveActualLine:'📉 Linia rzeczywista',
+        primaryText:'🔤 Tekst główny', resetColors:'↺ Przywróć domyślne',
+        color1:'🎨 Kolor 1 (lewy górny)', color2:'🎨 Kolor 2 (prawy dolny)',
+        solarPowerUnit:'☀️ Jednostka mocy solarnej', solarDesignCap:'⚡ Moc projektowa (Wp) — oś Y',
+        solarDesignHint:'Całkowita moc projektowa (Wp). Puste = auto 8000W.',
+        sensorMode:'Tryb czujnika', invertDir:'🔄 Odwróć kierunek (Deye/Growatt)',
+        gridPowerUnit:'Jednostka mocy sieci', homePowerUnit:'Jednostka mocy domu',
+        battPowerUnit:'Jednostka mocy', gridOptions:'🔌 OPCJE SIECI', homeOptions:'🏠 OPCJE DOMU',
+        timeFormat:'🕐 Format czasu',
+      },
+      sv:{
+        displayOpts:'🎨 Visningsalternativ', flowStyle:'🌊 Flödesstil',
+        language:'🌐 Språk / Language / Sprache / Lingua',
+        bgOpacity:'🪟 Bakgrundstransparens', showWeatherInfo:'☁️ Visa väderpanel',
+        showTomorrow:'🌤️ Visa morgondagens prognos', nodeGlow:'✨ Nodglödeffekt',
+        showForecastChart:'📊 Visa solarprognos-diagram', showHourlyStrip:'🕐 Visa timprognos',
+        minimalMode:'🪄 Minimalt läge (minska animationer)',
+        pricingTitle:'💰 Priser & Valuta', currencyLabel:'💱 Valutasymbol (standard: đ)',
+        pricingTiersLabel:'📊 Anpassade prisnivåer (valfritt)',
+        pricingHint:'Format: <code>gräns_kWh:taxa</code>, kommaseparerade. Tom = Vietnam EVN standard.',
+        layoutTitle:'📐 Nodlayout',
+        layoutHint:'Justera om Batteri eller Nät-noden klipps på små skärmar.',
+        batNodeX:'🔋 Batterinod X', grdNodeX:'🔌 Nätnod X',
+        invNodeY:'⚙️ Invertarnod Y', homNodeY:'🏠 Hemnod Y',
+        nodeScale:'📐 Nodskala (alla 4)', particleDensity:'✦ Partikeltäthet (>1kW)',
+        layoutDefault:'Standard: Batteri X = <strong>-40</strong>, Nät X = <strong>295</strong>, Invertar Y = <strong>210</strong>, Hem Y = <strong>410</strong>.',
+        colorTitle:'🎨 Färgtema', bgGradient:'🌈 BAKGRUNDSGRADIENT', preset:'Preset',
+        nodeBorderColors:'⬡ NODKANTFÄRGER', flowColors:'〰️ FLÖDES- / PARTIKELFÄRGER',
+        chartColors:'📊 DIAGRAMFÄRGER', textColor:'🔤 TEXTFÄRG',
+        fcLine:'📈 Prognoslinje', liveActualLine:'📉 Verklig linje',
+        primaryText:'🔤 Primär text', resetColors:'↺ Återställ standard',
+        color1:'🎨 Färg 1 (övre vänster)', color2:'🎨 Färg 2 (nedre höger)',
+        solarPowerUnit:'☀️ Solar effektenhet', solarDesignCap:'⚡ Solar designkapacitet (Wp) — Y-axel',
+        solarDesignHint:'Total designkapacitet (Wp). Tom = auto 8000W.',
+        sensorMode:'Sensorläge', invertDir:'🔄 Invertera riktning (Deye/Growatt)',
+        gridPowerUnit:'Nät effektenhet', homePowerUnit:'Hem effektenhet',
+        battPowerUnit:'Effektenhet', gridOptions:'🔌 NÄTALTERNATIV', homeOptions:'🏠 HEMALTERNATIV',
+        timeFormat:'🕐 Tidsformat',
+      },
+      hu:{
+        displayOpts:'🎨 Megjelenítési lehetőségek', flowStyle:'🌊 Áramlás stílusa',
+        language:'🌐 Nyelv / Language / Sprache / Lingua',
+        bgOpacity:'🪟 Háttér átlátszósága', showWeatherInfo:'☁️ Időjárás panel megjelenítése',
+        showTomorrow:'🌤️ Holnapi előrejelzés megjelenítése', nodeGlow:'✨ Csomópont izzás effekt',
+        showForecastChart:'📊 Napelem prognózis diagram megjelenítése', showHourlyStrip:'🕐 Óránkénti sáv megjelenítése',
+        minimalMode:'🪄 Minimális mód (animációk csökkentése)',
+        pricingTitle:'💰 Árak & Pénznem', currencyLabel:'💱 Pénznem szimbólum (alapért.: đ)',
+        pricingTiersLabel:'📊 Egyéni árszintek (opcionális)',
+        pricingHint:'Formátum: <code>határ_kWh:díjszabás</code>, vesszővel elválasztva. Üres = Vietnam EVN alapértelmezett.',
+        layoutTitle:'📐 Csomópont elrendezés',
+        layoutHint:'Állítsd be ha az Akkumulátor vagy Hálózat csomópont kis képernyőn levágódik.',
+        batNodeX:'🔋 Akkumulátor csomópont X', grdNodeX:'🔌 Hálózat csomópont X',
+        invNodeY:'⚙️ Inverter csomópont Y', homNodeY:'🏠 Otthon csomópont Y',
+        nodeScale:'📐 Csomópont méretezés (mind 4)', particleDensity:'✦ Részecske sűrűség (>1kW)',
+        layoutDefault:'Alapértelmezett: Akkumulátor X = <strong>-40</strong>, Hálózat X = <strong>295</strong>, Inverter Y = <strong>210</strong>, Otthon Y = <strong>410</strong>.',
+        colorTitle:'🎨 Színtéma', bgGradient:'🌈 HÁTTÉR GRADIENS', preset:'Preset',
+        nodeBorderColors:'⬡ CSOMÓPONT SZEGÉLY SZÍNEK', flowColors:'〰️ ÁRAMLÁS / RÉSZECSKE SZÍNEK',
+        chartColors:'📊 DIAGRAM SZÍNEK', textColor:'🔤 SZÖVEG SZÍN',
+        fcLine:'📈 Prognózis vonal', liveActualLine:'📉 Tényleges vonal',
+        primaryText:'🔤 Elsődleges szöveg', resetColors:'↺ Alapértelmezett visszaállítása',
+        color1:'🎨 Szín 1 (bal felső)', color2:'🎨 Szín 2 (jobb alsó)',
+        solarPowerUnit:'☀️ Napelem teljesítmény egység', solarDesignCap:'⚡ Napelem tervezési kapacitás (Wp) — Y-tengely',
+        solarDesignHint:'Teljes tervezési kapacitás (Wp). Üres = auto 8000W.',
+        sensorMode:'Érzékelő mód', invertDir:'🔄 Irány megfordítása (Deye/Growatt)',
+        gridPowerUnit:'Hálózat teljesítmény egység', homePowerUnit:'Otthon teljesítmény egység',
+        battPowerUnit:'Teljesítmény egység', gridOptions:'🔌 HÁLÓZAT BEÁLLÍTÁSOK', homeOptions:'🏠 OTTHON BEÁLLÍTÁSOK',
+        timeFormat:'🕐 Időformátum',
       },
     };
     const L=E[lang]||E.en;
@@ -799,6 +1049,10 @@ class SolarWeatherCardEditor extends HTMLElement {
               {v:'de', flag:'<img src="https://flagcdn.com/16x12/de.png" width="20" height="14" alt="DE"/> Deutsch'},
               {v:'it', flag:'<img src="https://flagcdn.com/16x12/it.png" width="20" height="14" alt="IT"/> Italiano'},
               {v:'fr', flag:'<img src="https://flagcdn.com/16x12/fr.png" width="20" height="14" alt="FR"/> Français'},
+              {v:'nl', flag:'<img src="https://flagcdn.com/16x12/nl.png" width="20" height="14" alt="NL"/> Nederlands'},
+              {v:'pl', flag:'<img src="https://flagcdn.com/16x12/pl.png" width="20" height="14" alt="PL"/> Polski'},
+              {v:'sv', flag:'<img src="https://flagcdn.com/16x12/se.png" width="20" height="14" alt="SE"/> Svenska'},
+              {v:'hu', flag:'<img src="https://flagcdn.com/16x12/hu.png" width="20" height="14" alt="HU"/> Magyar'},
             ].map(l=>`<div class="lang-btn ${lang===l.v?'on':''}" data-lang="${l.v}">${l.flag}</div>`).join('')}
           </div>
         </div>
@@ -837,6 +1091,14 @@ class SolarWeatherCardEditor extends HTMLElement {
         <div class="toggle-row">
           <label class="tl">${L.minimalMode}</label>
           <label class="tog"><input type="checkbox" id="minimalTog" ${minimalMode?'checked':''}/><span class="tog-sl"></span></label>
+        </div>
+
+        <div class="opt-row" style="margin-top:4px;margin-bottom:0">
+          <label>${L.timeFormat}</label>
+          <div class="bg">
+            <div class="ob ${(this._config.time_format||'24h')==='24h'?'on':''}" data-t="time_format" data-v="24h">24h</div>
+            <div class="ob ${this._config.time_format==='12h'?'on':''}"           data-t="time_format" data-v="12h">12h (AM/PM)</div>
+          </div>
         </div>
 
 
@@ -1631,7 +1893,7 @@ class SolarWeatherCard extends HTMLElement {
   _render(){
     if(!this._hass) return;
     const cfg=this._config;
-    if(!Object.values(cfg).some(v=>v&&String(v).trim()&&!['particle','wave','line','vi','en','de','it','fr'].includes(v)&&isNaN(v)&&v!=='đ'&&v!=='€'&&v!=='$')){ this._unconfigured(); return; }
+    if(!Object.values(cfg).some(v=>v&&String(v).trim()&&!['particle','wave','line','vi','en','de','it','fr','nl','pl','sv','hu','12h','24h'].includes(v)&&isNaN(v)&&v!=='đ'&&v!=='€'&&v!=='$')){ this._unconfigured(); return; }
 
     const lang=cfg.language||'vi';
     const T=I18N[lang]||I18N.vi;
@@ -1814,6 +2076,7 @@ class SolarWeatherCard extends HTMLElement {
     const dailyuse=this._gf('solar_dailyuse_entity',0).toFixed(1);
     const liveW=this._gf('solar_live_entity',0);
     const gridDaily=this._gf('grid_today_entity',0).toFixed(1);
+    const gridExportToday=this._gf('grid_export_today_entity',0);
     const combinedFmt=this._gf('consumption_today_entity',0).toFixed(1);
     const saving=this._calcCost(parseFloat(daily));
     const savFmt=this._fmtSaving(saving);
@@ -1831,7 +2094,10 @@ class SolarWeatherCard extends HTMLElement {
     // Clock
     const now=new Date();
     const H=now.getHours(),M=now.getMinutes();
-    const ap=H>=12?'PM':'AM',hh=String(H%12||12).padStart(2,'0'),mm=String(M).padStart(2,'0');
+    const use12h=cfg.time_format==='12h';
+    const ap=use12h?(H>=12?'PM':'AM'):'';
+    const hh=use12h?String(H%12||12).padStart(2,'0'):String(H).padStart(2,'0');
+    const mm=String(M).padStart(2,'0');
     const dateStr=`${T.days[now.getDay()]}, ${now.getDate()} ${T.months[now.getMonth()]} ${now.getFullYear()}`;
 
     // Sun arc
@@ -2426,6 +2692,10 @@ ${minimalMode?`
         ${moonSVG}
         ${FL}
         ${foBAT}${foINV}${foGRD}${foHOM}
+        ${gridExportToday>0.005?`<g>
+          <rect x="${GRD_X}" y="${GRD_Y+GRD_H+6}" width="${GRD_W}" height="22" rx="5" fill="rgba(255,210,50,.12)" stroke="rgba(255,210,50,.35)" stroke-width="1"/>
+          <text x="${GRD_X+GRD_W/2}" y="${GRD_Y+GRD_H+21}" text-anchor="middle" fill="rgba(255,220,60,.95)" font-size="10" font-weight="700" font-family="Inter">⚡ ${gridExportToday.toFixed(2)} kWh</text>
+        </g>`:''}
         ${showForecastChart?barChartSVG:''}
         ${showForecastChart?solarChartSVG:''}
       </svg>
