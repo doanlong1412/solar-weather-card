@@ -2887,8 +2887,8 @@ window.customCards=window.customCards||[];
 window.customCards.push({
   type:'solar-weather-card',
   name:'Solar Weather Card',
-  description:'Solar + Battery + Weather — particle/wave/line flow, 5 languages (VI/EN/DE/IT/FR), bar chart, minimal mode, background presets, custom pricing, node glow & Y-axis layout',
-  preview:false,
+  description: '☀️ Solar & battery flow card with live weather, Solcast forecast, 9 languages, animated particles/waves, day/night icons & real-time stats.',
+  preview:true,
   documentationURL:'https://github.com/doanlong1412/solar-weather-card',
 });
 
