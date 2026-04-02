@@ -359,6 +359,38 @@ const I18N = {
       else if(isDisch&&battSoc<20) msg+=` ⚠️ Akkumulátor alacsony (${bPct}%)!`;
       return msg;
     }
+  },
+  cs: {
+    tomorrow:'Zítra', sunrise:'Východ', sunset:'Západ', dayPct:'dne',
+    daytime:'Den', nighttime:'Noc',
+    charging:'🔋⚡ Nabíjení', discharging:'🔋🔁 Vybíjení', standby:'⏳ Pohotovost',
+    exportGrid:'Přebytky', importGrid:'Síť',
+    homeConsume:'Spotřeba', battLabel:'🔋 Baterie',
+    etaFull:'⚡ Odhadovaný čas do plna: ', etaLeft:'🔁 Zbývající čas: ',
+    slowCharge:'⚡ Nabíjí se velmi pomalu', slowDisch:'🔁 Vybíjí se velmi pomalu',
+    solarStat:'Solár', gridStat:'Ze sítě', consumeStat:'Spotřeba',
+    savingStat:'Úspora', systemStat:'⚙️ SYSTÉM', statsTitle:'Dnešní statistiky',
+    solarProduced:'Solár', solarUsed:'Spotřeba domu',
+    forecastToday:'☀️ Předpověď dnes', forecastTmr:'☀️ Předpověď zítra',
+    actualToday:'☀️ Skutečnost dnes', peakForecast:'Předpověď', actualNow:'Skutečnost',
+    condMap:{'sunny':'☀️ Slunečno','clear-night':'🌙 Jasná noc','partlycloudy':'⛅ Polojasno','cloudy':'☁️ Zataženo','rainy':'🌧️ Déšť','pouring':'⛈️ Přívalový déšť','lightning':'⚡ Bouřka','fog':'🌫️ Mlha','windy':'💨 Větrno'},
+    days:['Neděle','Pondělí','Úterý','Středa','Čtvrtek','Pátek','Sobota'],
+    months:['Led','Úno','Bře','Dub','Kvě','Čvn','Čvc','Srp','Zář','Říj','Lis','Pro'],
+    ticker(ws,daily,dailyuse,savFmt,cur,bPct,isCharge,isDisch,battSoc){
+      const kw=parseFloat(daily); let msg='';
+      if(ws==='rainy'||ws==='pouring') msg=`🌧️ Deštivý den, solární výroba omezena${kw>0?' — vyrobeno '+daily+' kWh':''}.`;
+      else if(ws==='lightning') msg='⛈️ Špatné počasí, solár pozastaven.';
+      else if(ws==='cloudy') msg=`☁️ Zataženo, solár snížen${kw>0?' — '+daily+' kWh':''}.`;
+      else if(ws==='partlycloudy') msg=`⛅ Polojasno — vyrobeno ${daily} kWh, dům spotřeboval ${dailyuse} kWh.`;
+      else if(ws==='sunny'){ if(kw>15) msg=`☀️ Skvělý den — vyrobeno ${daily} kWh, dům ${dailyuse} kWh!`; else if(kw>8) msg=`☀️ Slunečný den — vyrobeno ${daily} kWh, dům ${dailyuse} kWh.`; else msg=`☀️ Slunečno, ale výroba zatím nízká — ${daily} kWh.`; }
+      else if(ws==='fog') msg='🌫️ Hustá mlha, slabý solární výkon.';
+      else if(ws==='windy') msg=`💨 Větrno, solár normální — vyrobeno ${daily} kWh.`;
+      else msg=`🌤️ Solár vyrobil ${daily} kWh, dům spotřeboval ${dailyuse} kWh — úspora ${savFmt}${cur}.`;
+      if(battSoc===100) msg+=' ✅ Baterie plná!';
+      else if(isCharge&&battSoc>80) msg+=` 🔋 Nabíjí se, téměř plná (${bPct}%).`;
+      else if(isDisch&&battSoc<20) msg+=` ⚠️ Baterie nízká (${bPct}%)!`;
+      return msg;
+    }
   }
 };
 
@@ -370,9 +402,9 @@ function makeWeatherIcon(ws){
     .wi{width:70px;height:70px;position:relative;display:flex;align-items:center;justify-content:center}
     .sn-c{width:26px;height:26px;background:#FFE135;border-radius:50%;box-shadow:0 0 14px 5px rgba(255,220,60,.55);animation:snP 2.5s ease-in-out infinite;position:relative;z-index:1}
     @keyframes snP{0%,100%{box-shadow:0 0 14px 5px rgba(255,220,60,.5)}50%{box-shadow:0 0 22px 9px rgba(255,220,60,.78)}}
-    .sn-r{position:absolute;inset:0;animation:snS 8s linear infinite}
+    .sn-r{position:absolute;inset:0;animation:snS 8s linear infinite;display:flex;align-items:center;justify-content:center}
     @keyframes snS{to{transform:rotate(360deg)}}
-    .sn-ray{position:absolute;width:4px;height:11px;background:linear-gradient(to bottom,rgba(255,235,80,.9),rgba(255,220,60,.1));border-radius:2px;left:50%;transform-origin:50% 200%}
+    .sn-ray{position:absolute;width:4px;height:11px;background:linear-gradient(to bottom,rgba(255,235,80,.9),rgba(255,220,60,.1));border-radius:2px;transform-origin:50% 50%;margin-left:-2px}
     .mn{width:30px;height:30px;background:#C8D8F8;border-radius:50%;box-shadow:-7px 2px 0 0 rgba(0,20,50,.92),0 0 16px 5px rgba(160,195,255,.4);animation:mnG 3s ease-in-out infinite}
     @keyframes mnG{0%,100%{box-shadow:-7px 2px 0 0 rgba(0,20,50,.92),0 0 16px 5px rgba(160,195,255,.38)}50%{box-shadow:-7px 2px 0 0 rgba(0,20,50,.92),0 0 24px 9px rgba(160,195,255,.58)}}
     .mst{position:absolute;background:rgba(255,255,255,.9);border-radius:50%;animation:mstT 1.8s ease-in-out infinite}
@@ -398,7 +430,7 @@ function makeWeatherIcon(ws){
     .wd-l{height:5px;border-radius:3px;background:rgba(180,210,250,.75);animation:wdB 1.4s ease-in-out infinite}
     @keyframes wdB{0%{opacity:.35;transform:scaleX(.65) translateX(-5px)}50%{opacity:.9;transform:scaleX(1) translateX(0)}100%{opacity:.35;transform:scaleX(.65) translateX(-5px)}}
   </style>`;
-  const rays=Array.from({length:8},(_,i)=>`<div class="sn-ray" style="transform:translateX(-50%) rotate(${i*45}deg)"></div>`).join('');
+  const rays=Array.from({length:8},(_,i)=>`<div class="sn-ray" style="transform:rotate(${i*45}deg) translateY(-21px)"></div>`).join('');
   const sun=`${css}<div class="wi"><div class="sn-r">${rays}</div><div class="sn-c"></div></div>`;
   if(ws==='sunny') return sun;
   if(ws==='clear-night') return `${css}<div class="wi"><div class="mn"></div><div class="mst" style="width:4px;height:4px;top:10px;right:8px"></div><div class="mst" style="width:3px;height:3px;top:18px;right:18px;animation-delay:.6s"></div><div class="mst" style="width:2px;height:2px;top:11px;right:22px;animation-delay:1.2s"></div></div>`;
@@ -1020,7 +1052,7 @@ class SolarWeatherCardEditor extends HTMLElement {
 
     <!-- CREDIT -->
     <div style="text-align:center;padding:10px 14px 4px;font-size:11px;color:var(--secondary-text-color);line-height:1.6;">
-      ☀️ Designed by <strong style="color:var(--primary-color);">@doanlong1412</strong> from 🇻🇳 Vietnam
+      ☀️ V1.7.2 Designed by <strong style="color:var(--primary-color);">@doanlong1412</strong> from 🇻🇳 Vietnam 
     </div>
 
     <!-- DISPLAY OPTIONS accordion -->
@@ -1053,6 +1085,7 @@ class SolarWeatherCardEditor extends HTMLElement {
               {v:'pl', flag:'<img src="https://flagcdn.com/16x12/pl.png" width="20" height="14" alt="PL"/> Polski'},
               {v:'sv', flag:'<img src="https://flagcdn.com/16x12/se.png" width="20" height="14" alt="SE"/> Svenska'},
               {v:'hu', flag:'<img src="https://flagcdn.com/16x12/hu.png" width="20" height="14" alt="HU"/> Magyar'},
+              {v:'cs', flag:'<img src="https://flagcdn.com/16x12/cz.png" width="20" height="14" alt="CZ"/> Čeština'},
             ].map(l=>`<div class="lang-btn ${lang===l.v?'on':''}" data-lang="${l.v}">${l.flag}</div>`).join('')}
           </div>
         </div>
@@ -2887,7 +2920,7 @@ window.customCards=window.customCards||[];
 window.customCards.push({
   type:'solar-weather-card',
   name:'Solar Weather Card',
-  description: '☀️ Solar & battery flow card with live weather, Solcast forecast, 9 languages, animated particles/waves, day/night icons & real-time stats.',
+  description: '☀️ Solar & battery flow card with live weather, Solcast forecast, 10 languages, animated particles/waves, day/night icons & real-time stats.',
   preview:true,
   documentationURL:'https://github.com/doanlong1412/solar-weather-card',
 });
