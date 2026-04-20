@@ -1,64 +1,10 @@
 /**
- * Solar Weather Card v1.2.0
- * Custom Home Assistant card — Solar + Battery + Weather dashboard
- * Hỗ trợ Visual Config Editor — chọn entity qua UI
- * Thiết kế và phát triển bởi **[@doanlong1412](https://github.com/doanlong1412)**.
- *
- * Changelog v1.2.0:
- *   - Icon thời tiết CSS animation động (nắng, mưa, sấm, sương...)
- *   - Điều kiện thời tiết tiếng Việt
- *   - Icon ngày mai thu nhỏ có animatio
- *
- * Changelog v1.3.0:
- *   - Thêm tùy chọn flow_style: "line" (mặc định) hoặc "particle" (bong bóng)
- *   - Particle mode: bong bóng chạy dọc đường cong Bezier, có glow + sparkle
- *   - Layout node particle mode rộng hơn, đường cong mềm mại hơn
- *   - pvDC hiển thị điện áp PV trong inverter box (particle mode)
- * Changelog v1.3.1:
- *   - Fix tính ETA sạc/xả: LuxPower trả Ah → nhân voltage thực tế ra Wh
- *   - Thêm ô nhập tay Wh nếu không có sensor
- *   - Mặc định 560Ah × 48V = 26880 Wh
- * Solar Weather Card v1.4.0
- * Changelog v1.4.0:
- *   - Node cards hoàn toàn mới: border nhịp tim, hex grid, icon 3D chi tiết
- *     (pin chi tiết, inverter quạt quay + sóng sine, cột điện, ngôi nhà)
- *   - Mặt trời đập nhịp tim theo công suất solar, cung hạ thấp hơn
- *   - Particle system cải tiến: highlight trắng nhỏ + glow layer
- *   - Ticker thông tin thời tiết + trạng thái pin chạy cuối card
- *   - Stats bar 5 ô: Solar / Lấy lưới / Tiêu thụ / Tiết kiệm / Hệ thống
- *   - Pin bar đổi màu đỏ/cam/xanh theo %
- *   - Tùy chọn flow_style: "line" hoặc "particle"
- *   - Tùy chọn language: "vi" (mặc định) hoặc "en"
- *   - Tùy chọn background_opacity: 0-100 (mặc định 45)
- *
- * Solar Weather Card v1.4.1
- * Changelog v1.4.1:
- *   - Cột điện mới: lattice tower + transformer chi tiết
- *   - flowLevel có type (solar/battery/grid/home) — thang riêng từng loại
- *   - Language: vi / en / de / it — dropdown 4 lựa chọn
- *   - Tùy chọn bật/tắt dự báo ngày mai (show_tomorrow)
- *   - Tùy chọn thang giá tùy chỉnh + đơn vị tiền tệ
- *     (nếu không nhập → mặc định EVN VNĐ)
- * Solar Weather Card v1.5.2
- * Changelog v1.5.1
- * Solar Weather Card v1.5.1
- * Changelog v1.5.0:
- *   - Flow style thứ 3: "wave" — sóng sin + dust particles + bright dots
- *   - Tùy chọn bật/tắt node glow (show_node_glow)
- *   - Xóa label công suất cạnh flow (chỉ hiển thị trong node card)
- *   - ha-entity-picker trong Editor — dropdown chọn entity như HA native
- *   - Giữ nguyên tất cả tính năng v1.4.1
- *
- * v1.6.0
- *Solar Forecast Chart** — actual hourly line + Solcast/formula forecast curve
- *Solcast integration** — reads detailed hourly forecast from [ha-solcast-solar](https://github.com/BJReplay/ha-solcast-solar) by **@BJReplay**
- *Formula sensor fallback** — forecast based on sun arc + cloud coverage when Solcast is unavailable
- *Hourly recording automation** — logs real solar output each hour into `input_text.solar_live_curve`
- *Chart visibility toggle** — `show_forecast_chart` in the Visual Editor, positioned below Node glow effect
- *Solar design capacity** (`solar_design_wp`) — enter your system's Wp so the chart Y-axis scales accurately to your installation
- *Color Theme** — customise node borders, flow/particle colours, chart line colours, and primary text colour; one-click Reset to defaults
- *
- * v1.7.0
+ * v1.8.0
+ *Rooms** — up to 4 configurable rooms/devices shown below the energy diagram, with custom name, icon, entity
+ *YAML-style flow** — particle engine ported from YAML (stroke-dasharray animate, lighter & stable)
+ *Flow styles** — Spark (YAML-style), Wave, Line
+ *Room flow** — animated branch flows from Home node to each room
+ *Removed Minimal mode** — animations always active (YAML parity)
  *Solar Forecast Chart** — actual hourly line + Solcast/formula forecast curve
  *Solcast integration** — reads detailed hourly forecast from [ha-solcast-solar](https://github.com/BJReplay/ha-solcast-solar) by **@BJReplay**
  *Formula sensor fallback** — forecast based on sun arc + cloud coverage when Solcast is unavailable
@@ -391,56 +337,86 @@ const I18N = {
       else if(isDisch&&battSoc<20) msg+=` ⚠️ Baterie nízká (${bPct}%)!`;
       return msg;
     }
+  },
+  sl: {
+    tomorrow:'Jutri', sunrise:'Vzhod', sunset:'Zahod', dayPct:'dneva',
+    daytime:'Podnevi', nighttime:'Ponoči',
+    charging:'🔋⚡ Polnjenje', discharging:'🔋🔁 Praznjenje', standby:'⏳ Pripravljenost',
+    exportGrid:'Izvoz', importGrid:'Omrežje',
+    homeConsume:'Poraba', battLabel:'🔋 Baterija',
+    etaFull:'⚡ Predvideni čas do polne: ', etaLeft:'🔁 Preostali čas: ',
+    slowCharge:'⚡ Polnjenje zelo počasi', slowDisch:'🔁 Praznjenje zelo počasi',
+    solarStat:'Solarno', gridStat:'Iz omrežja', consumeStat:'Poraba',
+    savingStat:'Prihranek', systemStat:'⚙️ SISTEM', statsTitle:'Današnja statistika',
+    solarProduced:'Solarno', solarUsed:'Poraba doma',
+    forecastToday:'☀️ Napoved danes', forecastTmr:'☀️ Napoved jutri',
+    actualToday:'☀️ Dejansko danes', peakForecast:'Napoved', actualNow:'Dejansko',
+    condMap:{'sunny':'☀️ Sončno','clear-night':'🌙 Jasna noč','partlycloudy':'⛅ Delno oblačno','cloudy':'☁️ Oblačno','rainy':'🌧️ Dežuje','pouring':'⛈️ Močan dež','lightning':'⚡ Nevihta','fog':'🌫️ Megla','windy':'💨 Vetrovno'},
+    days:['Nedelja','Ponedeljek','Torek','Sreda','Četrtek','Petek','Sobota'],
+    months:['Jan','Feb','Mar','Apr','Maj','Jun','Jul','Avg','Sep','Okt','Nov','Dec'],
+    ticker(ws,daily,dailyuse,savFmt,cur,bPct,isCharge,isDisch,battSoc){
+      const kw=parseFloat(daily); let msg='';
+      if(ws==='rainy'||ws==='pouring') msg=`🌧️ Deževni dan, solarni izkoristek omejen${kw>0?' — proizvedeno '+daily+' kWh':''}.`;
+      else if(ws==='lightning') msg='⛈️ Slabo vreme, solarni sistem zaustavljen.';
+      else if(ws==='cloudy') msg=`☁️ Oblačno, solarni izkoristek zmanjšan${kw>0?' — '+daily+' kWh':''}.`;
+      else if(ws==='partlycloudy') msg=`⛅ Delno oblačno — proizvedeno ${daily} kWh, hiša porabila ${dailyuse} kWh.`;
+      else if(ws==='sunny'){ if(kw>15) msg=`☀️ Odličen sončen dan — proizvedeno ${daily} kWh, hiša ${dailyuse} kWh!`; else if(kw>8) msg=`☀️ Sončno — proizvedeno ${daily} kWh, hiša ${dailyuse} kWh.`; else msg=`☀️ Sončno, a proizvodnja še nizka — ${daily} kWh.`; }
+      else if(ws==='fog') msg='🌫️ Gosta megla, slab solarni izkoristek.';
+      else if(ws==='windy') msg=`💨 Vetrovno, solar deluje normalno — ${daily} kWh.`;
+      else msg=`🌤️ Solar je proizvedel ${daily} kWh, hiša porabila ${dailyuse} kWh — prihranek ${savFmt}${cur}.`;
+      if(battSoc===100) msg+=' ✅ Baterija polna!';
+      else if(isCharge&&battSoc>80) msg+=` 🔋 Polnjenje, skoraj polna (${bPct}%).`;
+      else if(isDisch&&battSoc<20) msg+=` ⚠️ Baterija nizka (${bPct}%)!`;
+      return msg;
+    }
   }
 };
 
 // ═══════════════════════════════════════════════════════════════
 // WEATHER ICONS
 // ═══════════════════════════════════════════════════════════════
+const _WEATHER_ICON_CSS=`
+  .wi{width:70px;height:70px;position:relative;display:flex;align-items:center;justify-content:center}
+  .sn-c{width:26px;height:26px;background:#FFE135;border-radius:50%;box-shadow:0 0 14px 5px rgba(255,220,60,.55);position:relative;z-index:1}
+  .sn-r{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+  .sn-ray{position:absolute;width:4px;height:11px;background:linear-gradient(to bottom,rgba(255,235,80,.9),rgba(255,220,60,.1));border-radius:2px;transform-origin:50% 50%;margin-left:-2px}
+  .mn{width:30px;height:30px;background:#C8D8F8;border-radius:50%;box-shadow:-7px 2px 0 0 rgba(0,20,50,.92),0 0 16px 5px rgba(160,195,255,.4)}
+  .mst{position:absolute;background:rgba(255,255,255,.9);border-radius:50%;opacity:.7}
+  .cl{border-radius:10px;position:absolute;bottom:12px;left:10px}
+  .cl::before{content:'';position:absolute;width:24px;height:24px;border-radius:50%;top:-12px;left:8px}
+  .cl::after{content:'';position:absolute;width:18px;height:18px;border-radius:50%;top:-8px;left:22px}
+  .cl-w{width:44px;height:20px;background:rgba(200,215,235,.88)}.cl-w::before,.cl-w::after{background:rgba(210,225,245,.9)}
+  .cl-g{width:44px;height:20px;background:rgba(150,170,200,.88)}.cl-g::before,.cl-g::after{background:rgba(155,175,205,.88)}
+  .cl-dk{width:46px;height:20px;background:rgba(100,120,155,.9)}.cl-dk::before,.cl-dk::after{background:rgba(105,125,160,.9)}
+  .cl-abs{position:absolute;bottom:auto;left:50%;transform:translateX(-50%)}
+  .pc-sn{position:absolute;top:8px;right:6px;width:22px;height:22px;background:#FFE135;border-radius:50%;box-shadow:0 0 9px rgba(255,215,50,.55)}
+  .dp{width:2.5px;border-radius:2px;background:rgba(140,190,255,.9);opacity:.75}
+  .dps{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);display:flex;gap:6px}
+  .bl-w{position:absolute;bottom:5px;left:50%;transform:translateX(-50%)}
+  .fg-l{height:6px;border-radius:3px;background:rgba(200,210,225,.65)}
+  .fg-w{display:flex;flex-direction:column;gap:8px}
+  .wd-l{height:5px;border-radius:3px;background:rgba(180,210,250,.75)}
+`;
+function _ensureWeatherCSS(root){
+  if(!root||root.querySelector('#wi-css')) return;
+  const s=document.createElement('style');
+  s.id='wi-css';
+  s.textContent=_WEATHER_ICON_CSS;
+  root.appendChild(s);
+}
 function makeWeatherIcon(ws){
-  const css=`<style>
-    .wi{width:70px;height:70px;position:relative;display:flex;align-items:center;justify-content:center}
-    .sn-c{width:26px;height:26px;background:#FFE135;border-radius:50%;box-shadow:0 0 14px 5px rgba(255,220,60,.55);animation:snP 2.5s ease-in-out infinite;position:relative;z-index:1}
-    @keyframes snP{0%,100%{box-shadow:0 0 14px 5px rgba(255,220,60,.5)}50%{box-shadow:0 0 22px 9px rgba(255,220,60,.78)}}
-    .sn-r{position:absolute;inset:0;animation:snS 8s linear infinite;display:flex;align-items:center;justify-content:center}
-    @keyframes snS{to{transform:rotate(360deg)}}
-    .sn-ray{position:absolute;width:4px;height:11px;background:linear-gradient(to bottom,rgba(255,235,80,.9),rgba(255,220,60,.1));border-radius:2px;transform-origin:50% 50%;margin-left:-2px}
-    .mn{width:30px;height:30px;background:#C8D8F8;border-radius:50%;box-shadow:-7px 2px 0 0 rgba(0,20,50,.92),0 0 16px 5px rgba(160,195,255,.4);animation:mnG 3s ease-in-out infinite}
-    @keyframes mnG{0%,100%{box-shadow:-7px 2px 0 0 rgba(0,20,50,.92),0 0 16px 5px rgba(160,195,255,.38)}50%{box-shadow:-7px 2px 0 0 rgba(0,20,50,.92),0 0 24px 9px rgba(160,195,255,.58)}}
-    .mst{position:absolute;background:rgba(255,255,255,.9);border-radius:50%;animation:mstT 1.8s ease-in-out infinite}
-    @keyframes mstT{0%,100%{opacity:.9;transform:scale(1)}50%{opacity:.25;transform:scale(.55)}}
-    .cl{border-radius:10px;position:absolute;bottom:12px;left:10px}
-    .cl::before{content:"";position:absolute;width:24px;height:24px;border-radius:50%;top:-12px;left:8px}
-    .cl::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;top:-8px;left:22px}
-    .cl-w{width:44px;height:20px;background:rgba(200,215,235,.88)}.cl-w::before,.cl-w::after{background:rgba(210,225,245,.9)}
-    .cl-g{width:44px;height:20px;background:rgba(150,170,200,.88)}.cl-g::before,.cl-g::after{background:rgba(155,175,205,.88)}
-    .cl-dk{width:46px;height:20px;background:rgba(100,120,155,.9)}.cl-dk::before,.cl-dk::after{background:rgba(105,125,160,.9)}
-    .cl-f{animation:clF 3s ease-in-out infinite}
-    @keyframes clF{0%,100%{transform:translateX(0)}50%{transform:translateX(4px)}}
-    .cl-abs{position:absolute;bottom:auto;left:50%;transform:translateX(-50%)}
-    .pc-sn{position:absolute;top:8px;right:6px;width:22px;height:22px;background:#FFE135;border-radius:50%;box-shadow:0 0 9px rgba(255,215,50,.55);animation:snP 2.5s ease-in-out infinite}
-    .dp{width:2.5px;border-radius:2px;background:rgba(140,190,255,.9);animation:dpF .9s ease-in infinite}
-    @keyframes dpF{0%{opacity:0;transform:translateY(-4px)}30%{opacity:1}100%{opacity:0;transform:translateY(9px)}}
-    .dps{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);display:flex;gap:6px}
-    .bl-w{position:absolute;bottom:5px;left:50%;transform:translateX(-50%);animation:blF 2.2s ease-in-out infinite}
-    @keyframes blF{0%,85%,100%{opacity:0}88%{opacity:1}91%{opacity:.3}94%{opacity:1}97%{opacity:0}}
-    .fg-l{height:6px;border-radius:3px;background:rgba(200,210,225,.65)}
-    .fg-w{display:flex;flex-direction:column;gap:8px;animation:fgD 3s ease-in-out infinite}
-    @keyframes fgD{0%,100%{opacity:.65;transform:translateX(0)}50%{opacity:.88;transform:translateX(5px)}}
-    .wd-l{height:5px;border-radius:3px;background:rgba(180,210,250,.75);animation:wdB 1.4s ease-in-out infinite}
-    @keyframes wdB{0%{opacity:.35;transform:scaleX(.65) translateX(-5px)}50%{opacity:.9;transform:scaleX(1) translateX(0)}100%{opacity:.35;transform:scaleX(.65) translateX(-5px)}}
-  </style>`;
+  // Return only the HTML div — CSS is injected once separately via _ensureWeatherCSS()
   const rays=Array.from({length:8},(_,i)=>`<div class="sn-ray" style="transform:rotate(${i*45}deg) translateY(-21px)"></div>`).join('');
-  const sun=`${css}<div class="wi"><div class="sn-r">${rays}</div><div class="sn-c"></div></div>`;
+  const sun=`<div class="wi"><div class="sn-r">${rays}</div><div class="sn-c"></div></div>`;
   if(ws==='sunny') return sun;
-  if(ws==='clear-night') return `${css}<div class="wi"><div class="mn"></div><div class="mst" style="width:4px;height:4px;top:10px;right:8px"></div><div class="mst" style="width:3px;height:3px;top:18px;right:18px;animation-delay:.6s"></div><div class="mst" style="width:2px;height:2px;top:11px;right:22px;animation-delay:1.2s"></div></div>`;
-  if(ws==='partlycloudy') return `${css}<div class="wi"><div class="pc-sn"></div><div class="cl cl-w cl-f" style="width:40px;height:18px;bottom:10px;left:4px"></div></div>`;
-  if(ws==='cloudy') return `${css}<div class="wi"><div class="cl cl-w cl-f"></div></div>`;
-  if(ws==='rainy'){const d=[{h:'10px',d:'0s'},{h:'12px',d:'.2s'},{h:'9px',d:'.4s'},{h:'11px',d:'.15s'},{h:'10px',d:'.35s'}].map(a=>`<div class="dp" style="height:${a.h};animation-delay:${a.d}"></div>`).join('');return `${css}<div class="wi"><div class="cl cl-g cl-abs" style="top:8px;width:44px;height:20px"></div><div class="dps">${d}</div></div>`;}
-  if(ws==='pouring'){const d=[{h:'14px',d:'0s'},{h:'12px',d:'.1s'},{h:'15px',d:'.05s'},{h:'13px',d:'.15s'},{h:'14px',d:'.08s'},{h:'11px',d:'.2s'}].map(a=>`<div class="dp" style="height:${a.h};animation-delay:${a.d};animation-duration:.55s;width:3px"></div>`).join('');return `${css}<div class="wi"><div class="cl cl-dk cl-abs" style="top:5px;width:46px;height:20px"></div><div class="dps" style="gap:4px;bottom:2px">${d}</div></div>`;}
-  if(ws==='lightning') return `${css}<div class="wi"><div class="cl cl-dk cl-abs" style="top:4px;width:46px;height:20px"></div><div class="bl-w"><svg width="16" height="22" viewBox="0 0 16 22"><polygon points="9,0 1,13 7,13 5,22 15,9 9,9" fill="#FFE040" stroke="rgba(255,235,80,.5)" stroke-width="1"/></svg></div></div>`;
-  if(ws==='fog') return `${css}<div class="wi"><div class="fg-w"><div class="fg-l" style="width:50px"></div><div class="fg-l" style="width:36px;margin-left:8px"></div><div class="fg-l" style="width:44px"></div></div></div>`;
-  if(ws==='windy') return `${css}<div class="wi"><div style="display:flex;flex-direction:column;gap:9px"><div class="wd-l" style="width:50px"></div><div class="wd-l" style="width:38px;animation-delay:.18s"></div><div class="wd-l" style="width:46px;animation-delay:.36s"></div></div></div>`;
+  if(ws==='clear-night') return `<div class="wi"><div class="mn"></div><div class="mst" style="width:4px;height:4px;top:10px;right:8px"></div><div class="mst" style="width:3px;height:3px;top:18px;right:18px"></div><div class="mst" style="width:2px;height:2px;top:11px;right:22px"></div></div>`;
+  if(ws==='partlycloudy') return `<div class="wi"><div class="pc-sn"></div><div class="cl cl-w" style="width:40px;height:18px;bottom:10px;left:4px"></div></div>`;
+  if(ws==='cloudy') return `<div class="wi"><div class="cl cl-w"></div></div>`;
+  if(ws==='rainy'){const d=[{h:'10px'},{h:'12px'},{h:'9px'},{h:'11px'},{h:'10px'}].map(a=>`<div class="dp" style="height:${a.h}"></div>`).join('');return `<div class="wi"><div class="cl cl-g cl-abs" style="top:8px;width:44px;height:20px"></div><div class="dps">${d}</div></div>`;}
+  if(ws==='pouring'){const d=[{h:'14px'},{h:'12px'},{h:'15px'},{h:'13px'},{h:'14px'},{h:'11px'}].map(a=>`<div class="dp" style="height:${a.h};width:3px"></div>`).join('');return `<div class="wi"><div class="cl cl-dk cl-abs" style="top:5px;width:46px;height:20px"></div><div class="dps" style="gap:4px;bottom:2px">${d}</div></div>`;}
+  if(ws==='lightning') return `<div class="wi"><div class="cl cl-dk cl-abs" style="top:4px;width:46px;height:20px"></div><div class="bl-w"><svg width="16" height="22" viewBox="0 0 16 22"><polygon points="9,0 1,13 7,13 5,22 15,9 9,9" fill="#FFE040" stroke="rgba(255,235,80,.5)" stroke-width="1"/></svg></div></div>`;
+  if(ws==='fog') return `<div class="wi"><div class="fg-w"><div class="fg-l" style="width:50px"></div><div class="fg-l" style="width:36px;margin-left:8px"></div><div class="fg-l" style="width:44px"></div></div></div>`;
+  if(ws==='windy') return `<div class="wi"><div style="display:flex;flex-direction:column;gap:9px"><div class="wd-l" style="width:50px"></div><div class="wd-l" style="width:38px"></div><div class="wd-l" style="width:46px"></div></div></div>`;
   return sun;
 }
 
@@ -454,7 +430,7 @@ class SolarWeatherCardEditor extends HTMLElement {
     this._config={};
     this._hass=null;
     // track which accordion sections are open
-    this._open={display:true, weather:false, solar:false, battery:false, grid:false, stats:false, pricing:false, color:false};
+    this._open={display:true,weather:false,solar:false,battery:false,grid:false,stats:false,rooms:false,pricing:false,layout:false,color:false};
   }
 
   set hass(h){ this._hass=h; this._syncPickers(); }
@@ -536,6 +512,13 @@ class SolarWeatherCardEditor extends HTMLElement {
         const domain=p.dataset.domain;
         if(domain) p.includeDomains=[domain];
         const key=p.dataset.key;
+        const ri=p.dataset.ri!==undefined?parseInt(p.dataset.ri):-1;
+        if(ri>=0){
+          const rooms=this._config.rooms||[];
+          const saved=(rooms[ri]&&rooms[ri].entity)||'';
+          p.value=saved; p.setAttribute('value',saved);
+          return;
+        }
         const saved=this._config[key]||'';
         if(saved&&p.value!==saved){
           p.value=saved;
@@ -717,6 +700,9 @@ class SolarWeatherCardEditor extends HTMLElement {
         invNodeY:'⚙️ Node Inverter Y', homNodeY:'🏠 Node Nhà Y',
         nodeScale:'📐 Tỉ lệ node (4 node)', particleDensity:'✦ Mật độ hạt (>1kW)',
         layoutDefault:'Mặc định: Pin X = <strong>-40</strong>, Lưới X = <strong>295</strong>, Inverter Y = <strong>210</strong>, Nhà Y = <strong>410</strong>, Tỉ lệ = <strong>100%</strong>, Hạt = <strong>100%</strong>.<br/>Màn hình nhỏ: Pin = <strong>4</strong>, Lưới = <strong>250</strong>. Thiết bị yếu: Hạt = <strong>40–60%</strong>.',
+        roomLayoutTitle:'📐 Vị trí phòng (X/Y)',
+        roomLayoutHint:'Kéo từng phòng đến vị trí tuỳ ý. Offset X: dịch trái/phải. Offset Y: âm = lên trên (flow sẽ tự thích nghi). Nhấn Reset để về mặc định.',
+        roomOffsetX:'↔ X',roomOffsetY:'↕ Y',roomResetPos:'↺ Reset vị trí',
         colorTitle:'🎨 Màu sắc', bgGradient:'🌈 MÀU NỀN GRADIENT', preset:'Preset',
         nodeBorderColors:'⬡ MÀU VIỀN NODE', flowColors:'〰️ MÀU DÒNG CHẢY / HẠT',
         chartColors:'📊 MÀU BIỂU ĐỒ', textColor:'🔤 MÀU CHỮ',
@@ -746,6 +732,9 @@ class SolarWeatherCardEditor extends HTMLElement {
         invNodeY:'⚙️ Inverter node Y', homNodeY:'🏠 Home node Y',
         nodeScale:'📐 Node scale (all 4)', particleDensity:'✦ Particle density (>1kW)',
         layoutDefault:'Default: Battery X = <strong>-40</strong>, Grid X = <strong>295</strong>, Inverter Y = <strong>210</strong>, Home Y = <strong>410</strong>, Scale = <strong>100%</strong>, Particles = <strong>100%</strong>.<br/>Small screens: Battery = <strong>4</strong>, Grid = <strong>250</strong>. Low-end devices: Particles = <strong>40–60%</strong>.',
+        roomLayoutTitle:'📐 Room Positions (X/Y)',
+        roomLayoutHint:'Drag each room to any position. X = left/right offset. Y negative = move up (flow adapts automatically). Click Reset to restore defaults.',
+        roomOffsetX:'↔ X',roomOffsetY:'↕ Y',roomResetPos:'↺ Reset position',
         colorTitle:'🎨 Color Theme', bgGradient:'🌈 BACKGROUND GRADIENT', preset:'Preset',
         nodeBorderColors:'⬡ NODE BORDER COLORS', flowColors:'〰️ FLOW / PARTICLE COLORS',
         chartColors:'📊 CHART COLORS', textColor:'🔤 TEXT COLOR',
@@ -775,6 +764,9 @@ class SolarWeatherCardEditor extends HTMLElement {
         invNodeY:'⚙️ Wechselrichter-Node Y', homNodeY:'🏠 Haus-Node Y',
         nodeScale:'📐 Node-Skalierung (alle 4)', particleDensity:'✦ Partikeldichte (>1kW)',
         layoutDefault:'Standard: Batterie X = <strong>-40</strong>, Netz X = <strong>295</strong>, WR Y = <strong>210</strong>, Haus Y = <strong>410</strong>.',
+        roomLayoutTitle:'📐 Raumposition (X/Y)',
+        roomLayoutHint:'Jeden Raum beliebig positionieren. Negatives Y = nach oben (Fluss passt sich an). Reset stellt Standard wieder her.',
+        roomOffsetX:'↔ X',roomOffsetY:'↕ Y',roomResetPos:'↺ Reset',
         colorTitle:'🎨 Farbthema', bgGradient:'🌈 HINTERGRUNDVERLAUF', preset:'Preset',
         nodeBorderColors:'⬡ NODE-RANDFARBEN', flowColors:'〰️ FLUSS-/PARTIKELFARBEN',
         chartColors:'📊 DIAGRAMMFARBEN', textColor:'🔤 TEXTFARBE',
@@ -804,6 +796,9 @@ class SolarWeatherCardEditor extends HTMLElement {
         invNodeY:'⚙️ Nodo inverter Y', homNodeY:'🏠 Nodo casa Y',
         nodeScale:'📐 Scala nodi (tutti 4)', particleDensity:'✦ Densità particelle (>1kW)',
         layoutDefault:'Default: Batteria X = <strong>-40</strong>, Rete X = <strong>295</strong>, Inverter Y = <strong>210</strong>, Casa Y = <strong>410</strong>.',
+        roomLayoutTitle:'📐 Posizione stanze (X/Y)',
+        roomLayoutHint:'Posiziona liberamente ogni stanza. Y negativo = spostamento verso l\'alto (il flusso si adatta). Reset ripristina i valori predefiniti.',
+        roomOffsetX:'↔ X',roomOffsetY:'↕ Y',roomResetPos:'↺ Reset',
         colorTitle:'🎨 Tema colori', bgGradient:'🌈 GRADIENTE SFONDO', preset:'Preset',
         nodeBorderColors:'⬡ COLORI BORDO NODO', flowColors:'〰️ COLORI FLUSSO / PARTICELLE',
         chartColors:'📊 COLORI GRAFICO', textColor:'🔤 COLORE TESTO',
@@ -962,8 +957,37 @@ class SolarWeatherCardEditor extends HTMLElement {
         battPowerUnit:'Teljesítmény egység', gridOptions:'🔌 HÁLÓZAT BEÁLLÍTÁSOK', homeOptions:'🏠 OTTHON BEÁLLÍTÁSOK',
         timeFormat:'🕐 Időformátum',
       },
+      sl:{
+        displayOpts:'🎨 Možnosti prikaza', flowStyle:'🌊 Slog toka',
+        language:'🌐 Jezik / Language / Sprache / Lingua',
+        bgOpacity:'🪟 Prosojnost ozadja', showWeatherInfo:'☁️ Pokaži vremenski panel',
+        showTomorrow:'🌤️ Pokaži jutri napoved', nodeGlow:'✨ Učinek sijaja vozlišča',
+        showForecastChart:'📊 Pokaži diagram solarnih napovedi', showHourlyStrip:'🕐 Pokaži urno napoved',
+        pricingTitle:'💰 Cene & Valuta', currencyLabel:'💱 Simbol valute (privzeto: đ)',
+        pricingTiersLabel:'📊 Stopnje cen po meri (neobvezno)',
+        pricingHint:'Format: <code>meja_kWh:cena</code>, ločeno z vejico. Prazno = Vietnam EVN privzeto.',
+        layoutTitle:'📐 Postavitev vozlišč',
+        layoutHint:'Prilagodite, če je vozlišče baterije ali omrežja odrezano na majhnih zaslonih.',
+        batNodeX:'🔋 Baterija vozlišče X', grdNodeX:'🔌 Omrežje vozlišče X',
+        invNodeY:'⚙️ Razsmernik vozlišče Y', homNodeY:'🏠 Dom vozlišče Y',
+        nodeScale:'📐 Merilo vozlišča (vsa 4)', particleDensity:'✦ Gostota delcev (>1kW)',
+        layoutDefault:'Privzeto: Baterija X = <strong>-40</strong>, Omrežje X = <strong>295</strong>, Razsmernik Y = <strong>210</strong>, Dom Y = <strong>410</strong>.',
+        colorTitle:'🎨 Barvna tema', bgGradient:'🌈 GRADIENT OZADJA', preset:'Prednastavitev',
+        nodeBorderColors:'⬡ BARVE ROBOV VOZLIŠČ', flowColors:'〰️ BARVE TOKA / DELCEV',
+        chartColors:'📊 BARVE DIAGRAMA', textColor:'🔤 BARVA BESEDILA',
+        fcLine:'📈 Linija napovedi', liveActualLine:'📉 Dejanska linija',
+        primaryText:'🔤 Glavno besedilo', resetColors:'↺ Ponastavi privzeto',
+        color1:'🎨 Barva 1 (zgoraj levo)', color2:'🎨 Barva 2 (spodaj desno)',
+        solarPowerUnit:'☀️ Enota moči solarnega', solarDesignCap:'⚡ Projektna zmogljivost (Wp) — os Y',
+        solarDesignHint:'Skupna projektna zmogljivost (Wp). Prazno = auto 8000W.',
+        sensorMode:'Način senzorja', invertDir:'🔄 Obrni smer (Deye/Growatt)',
+        gridPowerUnit:'Enota moči omrežja', homePowerUnit:'Enota moči doma',
+        battPowerUnit:'Enota moči', gridOptions:'🔌 NASTAVITVE OMREŽJA', homeOptions:'🏠 NASTAVITVE DOMA',
+        timeFormat:'🕐 Format ure',
+      },
     };
-    const L=E[lang]||E.en;
+    const _Lbase=E[lang]||E.en;
+    const L={...E.en,..._Lbase};
     this._L=L;
     const showTmr   = this._config.show_tomorrow!==false;
     const showInfo  = this._config.show_weather_info!==false;
@@ -1052,10 +1076,44 @@ class SolarWeatherCardEditor extends HTMLElement {
 
     <!-- CREDIT -->
     <div style="text-align:center;padding:10px 14px 4px;font-size:11px;color:var(--secondary-text-color);line-height:1.6;">
-      ☀️ V1.7.2 Designed by <strong style="color:var(--primary-color);">@doanlong1412</strong> from 🇻🇳 Vietnam 
+      ☀️ V1.8.0 Designed by <strong style="color:var(--primary-color);">@doanlong1412</strong> from 🇻🇳 Vietnam 
     </div>
 
-    <!-- DISPLAY OPTIONS accordion -->
+    <!-- SOCIAL LINKS -->
+    <div style="display:flex;gap:8px;margin:6px 14px 10px;">
+      <a href="https://www.tiktok.com/@long.1412" target="_blank" rel="noopener noreferrer"
+        style="display:flex;align-items:center;gap:6px;flex:1;padding:7px 10px;
+          border-radius:10px;text-decoration:none;cursor:pointer;
+          background:linear-gradient(135deg,rgba(0,0,0,0.85) 0%,rgba(30,20,40,0.92) 100%);
+          border:1px solid rgba(255,255,255,0.08);
+          box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+        <svg width="18" height="18" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+          <path d="M27.2 7.2a7.6 7.6 0 0 1-7.6-7.6h-5v21.5a3.6 3.6 0 1 1-3.6-3.6c.33 0 .65.05.96.13V12.5a8.6 8.6 0 1 0 8.24 8.6V11.5a12.6 12.6 0 0 0 7.6 2.5V8.6a7.66 7.66 0 0 1-.54-.01z" fill="white"/>
+          <path d="M27.2 7.2a7.6 7.6 0 0 1-7.6-7.6h-3v21.5a3.6 3.6 0 1 1-2.6-3.46V12.5a8.6 8.6 0 1 0 7.6 8.6V11.5a12.6 12.6 0 0 0 5.6 1.5V8.6a7.6 7.6 0 0 1 0 0z" fill="#69C9D0" fill-opacity="0.5"/>
+          <path d="M13 21.1a3.6 3.6 0 1 0 3.6 3.6V3.6h-3v20.95a3.61 3.61 0 0 0-.6-.45z" fill="#EE1D52" fill-opacity="0.6"/>
+        </svg>
+        <div style="min-width:0;">
+          <div style="font-size:11px;font-weight:700;color:#ffffff;line-height:1.3;white-space:nowrap;">TikTok</div>
+          <div style="font-size:9.5px;color:rgba(255,255,255,0.55);line-height:1.3;white-space:nowrap;">@long.1412</div>
+        </div>
+      </a>
+      <a href="http://paypal.me/doanlong1412" target="_blank" rel="noopener noreferrer"
+        style="display:flex;align-items:center;gap:6px;flex:1;padding:7px 10px;
+          border-radius:10px;text-decoration:none;cursor:pointer;
+          background:linear-gradient(135deg,rgba(0,68,153,0.9) 0%,rgba(0,36,100,0.95) 100%);
+          border:1px solid rgba(255,255,255,0.1);
+          box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink:0;">
+          <path d="M19.5 6.5C19.5 9.5 17.5 11.5 14.5 11.5H12L11 16H8L10 6H14.5C17.3 6 19.5 4 19.5 6.5Z" fill="#009cde"/>
+          <path d="M17.5 4C17.5 7 15.5 9 12.5 9H10L9 14H6L8 4H12.5C15.3 4 17.5 2 17.5 4Z" fill="#ffffff" fill-opacity="0.85"/>
+          <path d="M7 16H4.5L6.5 6H9L7 16Z" fill="#ffffff" fill-opacity="0.5"/>
+        </svg>
+        <div style="min-width:0;">
+          <div style="font-size:11px;font-weight:700;color:#ffffff;line-height:1.3;white-space:nowrap;">Donate ☕</div>
+          <div style="font-size:9.5px;color:rgba(255,255,255,0.55);line-height:1.3;white-space:nowrap;">PayPal</div>
+        </div>
+      </a>
+    </div>
     <div class="acc-wrap" style="margin-bottom:8px">
       <div class="acc-head" id="head-display">
         <span>${L.displayOpts}</span>
@@ -1066,7 +1124,7 @@ class SolarWeatherCardEditor extends HTMLElement {
         <div class="opt-row">
           <label>${L.flowStyle}</label>
           <div class="bg">
-            <div class="ob ${fs==='particle'?'on':''}" data-t="flow_style" data-v="particle">✦ Particle</div>
+            <div class="ob ${fs==='particle'?'on':''}" data-t="flow_style" data-v="particle">✦ Spark</div>
             <div class="ob ${fs==='wave'?'on':''}"     data-t="flow_style" data-v="wave">〰️ Wave</div>
             <div class="ob ${fs==='line'?'on':''}"     data-t="flow_style" data-v="line">── Line</div>
           </div>
@@ -1086,6 +1144,7 @@ class SolarWeatherCardEditor extends HTMLElement {
               {v:'sv', flag:'<img src="https://flagcdn.com/16x12/se.png" width="20" height="14" alt="SE"/> Svenska'},
               {v:'hu', flag:'<img src="https://flagcdn.com/16x12/hu.png" width="20" height="14" alt="HU"/> Magyar'},
               {v:'cs', flag:'<img src="https://flagcdn.com/16x12/cz.png" width="20" height="14" alt="CZ"/> Čeština'},
+              {v:'sl', flag:'<img src="https://flagcdn.com/16x12/si.png" width="20" height="14" alt="SI"/> Slovenščina'},
             ].map(l=>`<div class="lang-btn ${lang===l.v?'on':''}" data-lang="${l.v}">${l.flag}</div>`).join('')}
           </div>
         </div>
@@ -1107,11 +1166,6 @@ class SolarWeatherCardEditor extends HTMLElement {
         </div>
 
         <div class="toggle-row">
-          <label class="tl">${L.nodeGlow}</label>
-          <label class="tog"><input type="checkbox" id="glowTog" ${showGlow?'checked':''}/><span class="tog-sl"></span></label>
-        </div>
-
-        <div class="toggle-row">
           <label class="tl">${L.showForecastChart}</label>
           <label class="tog"><input type="checkbox" id="forecastChartTog" ${showForecastChart?'checked':''}/><span class="tog-sl"></span></label>
         </div>
@@ -1119,11 +1173,6 @@ class SolarWeatherCardEditor extends HTMLElement {
         <div class="toggle-row">
           <label class="tl">${L.showHourlyStrip}</label>
           <label class="tog"><input type="checkbox" id="hourlyFcTog" ${showHourlyForecast?'checked':''}/><span class="tog-sl"></span></label>
-        </div>
-
-        <div class="toggle-row">
-          <label class="tl">${L.minimalMode}</label>
-          <label class="tog"><input type="checkbox" id="minimalTog" ${minimalMode?'checked':''}/><span class="tog-sl"></span></label>
         </div>
 
         <div class="opt-row" style="margin-top:4px;margin-bottom:0">
@@ -1140,6 +1189,66 @@ class SolarWeatherCardEditor extends HTMLElement {
 
     <!-- ENTITY SECTIONS -->
     ${SolarWeatherCardEditor.SECTIONS.map(s=>this._sectionHTML(s)).join('')}
+
+    <!-- ROOMS accordion -->
+    ${(()=>{
+      const isRoomsOpen=this._open['rooms']||false;
+      const cfgR=this._config.rooms||[];
+      const roomCount=Math.min(6,Math.max(2,parseInt(this._config.room_count??4)));
+      const defIcons=['🛋️','🍳','🔥','💻','🛏️','🧺'];
+      const defNames=lang==='vi'?['Phòng khách','Phòng bếp','Bếp từ','Office','Phòng ngủ','Giặt ủi']:['Living Room','Kitchen','Induction','Office','Bedroom','Laundry'];
+      let body='';
+      for(let ri=0;ri<roomCount;ri++){
+        const rm=cfgR[ri]||{};
+        body+=`<div style="background:var(--secondary-background-color);border:1px solid var(--divider-color);border-radius:10px;padding:10px 12px;margin-bottom:10px;">
+          <div style="font-size:12px;font-weight:700;color:var(--primary-color);margin-bottom:8px;">Room ${ri+1}</div>
+          <div class="row"><label>${lang==='vi'?'📝 Tên phòng':'📝 Room name'}</label>
+            <input type="text" class="room-name" data-ri="${ri}" placeholder="${defNames[ri]}" value="${rm.name||''}"/></div>
+          <div class="row"><label>${lang==='vi'?'🎨 Icon (emoji)':'🎨 Icon (emoji)'}</label>
+            <input type="text" class="room-icon" data-ri="${ri}" placeholder="${defIcons[ri]}" value="${rm.icon||''}"/></div>
+          <div class="row"><label>${lang==='vi'?'⚡ Entity công suất (W/kW)':'⚡ Power entity (W/kW)'}</label>
+            <ha-entity-picker class="room-entity" data-ri="${ri}" data-domain="sensor" allow-custom-entity></ha-entity-picker></div>
+        </div>`;
+      }
+      return `<div class="acc-wrap">
+        <div class="acc-head" id="head-rooms">
+          <span>🏠 ${lang==='vi'?`Cấu hình phòng (${roomCount} phòng)`:`Room configuration (${roomCount} rooms)`}</span>
+          <span class="acc-arrow" id="arrow-rooms">${isRoomsOpen?'▾':'▸'}</span>
+        </div>
+        <div class="acc-body" id="body-rooms" style="display:${isRoomsOpen?'block':'none'}">
+          <div class="sl-row" style="margin-bottom:14px">
+            <label style="font-size:12px;font-weight:600;color:var(--secondary-text-color);min-width:120px">${lang==='vi'?'🏠 Số phòng':'🏠 Room count'}</label>
+            <input type="range" id="roomCountSl" min="2" max="6" value="${roomCount}" step="1"/>
+            <span class="slv" id="roomCountV">${roomCount}</span>
+          </div>
+          <div class="hint" style="margin-bottom:10px">${lang==='vi'?'Hiển thị phòng/thiết bị bên dưới sơ đồ. Để trống = dùng tên mặc định.':'Shows rooms/devices below the energy diagram. Leave empty = use defaults.'}</div>
+          ${body}
+          <!-- ROOM LAYOUT POSITION SECTION -->
+          <div style="background:var(--secondary-background-color);border:1px solid var(--primary-color,#03a9f4);border-radius:10px;padding:12px 14px;margin-top:8px;">
+            <div style="font-size:12px;font-weight:700;color:var(--primary-color);margin-bottom:6px;">${L.roomLayoutTitle||'📐 Room Positions (X/Y)'}</div>
+            <div class="hint" style="margin-bottom:12px">${L.roomLayoutHint||'Offset each room freely. Negative Y = move up (flow adapts). Reset restores default.'}</div>
+            ${Array.from({length:roomCount},(_,ri)=>{
+              const offs=(this._config.room_offsets||[])[ri]||{};
+              const ox=offs.x??0, oy=offs.y??0;
+              return `<div style="background:var(--card-background-color,#fff);border:1px solid var(--divider-color);border-radius:8px;padding:8px 10px;margin-bottom:8px;">
+                <div style="font-size:11px;font-weight:700;color:var(--primary-color);margin-bottom:6px;">Room ${ri+1}</div>
+                <div class="sl-row" style="margin-bottom:6px">
+                  <label style="font-size:11px;min-width:28px">${L.roomOffsetX||'↔ X'}</label>
+                  <input type="range" class="room-ox" data-ri="${ri}" min="-160" max="160" value="${ox}" step="1"/>
+                  <span class="slv room-oxv" data-ri="${ri}">${ox}</span>
+                </div>
+                <div class="sl-row" style="margin-bottom:4px">
+                  <label style="font-size:11px;min-width:28px">${L.roomOffsetY||'↕ Y'}</label>
+                  <input type="range" class="room-oy" data-ri="${ri}" min="-350" max="80" value="${oy}" step="1"/>
+                  <span class="slv room-oyv" data-ri="${ri}">${oy}</span>
+                </div>
+                <button class="room-reset-pos" data-ri="${ri}" style="margin-top:4px;padding:4px 10px;border-radius:6px;border:1px solid var(--divider-color);background:var(--secondary-background-color);font-size:11px;cursor:pointer;color:var(--primary-text-color)">${L.roomResetPos||'↺ Reset'}</button>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>`;
+    })()}
 
     <!-- PRICING accordion -->
     <div class="acc-wrap">
@@ -1280,7 +1389,7 @@ class SolarWeatherCardEditor extends HTMLElement {
 
     // ── Accordion toggles ───────────────────────────────────────
     // ── Add fr to isParticle/wave/line check too
-    ['display','weather','solar','battery','grid','stats','pricing','layout','color'].forEach(id=>{
+    ['display','weather','solar','battery','grid','stats','rooms','pricing','layout','color'].forEach(id=>{
       const h=this.shadowRoot.getElementById('head-'+id);
       if(h) h.addEventListener('click',()=>this._toggle(id));
     });
@@ -1383,9 +1492,6 @@ class SolarWeatherCardEditor extends HTMLElement {
     this.shadowRoot.getElementById('tmrTog').addEventListener('change',e=>{
       this._config={...this._config,show_tomorrow:e.target.checked}; this._fire();
     });
-    this.shadowRoot.getElementById('glowTog').addEventListener('change',e=>{
-      this._config={...this._config,show_node_glow:e.target.checked}; this._fire();
-    });
     this.shadowRoot.getElementById('forecastChartTog').addEventListener('change',e=>{
       this._config={...this._config,show_forecast_chart:e.target.checked}; this._fire();
     });
@@ -1393,11 +1499,6 @@ class SolarWeatherCardEditor extends HTMLElement {
     if(hourlyFcTog) hourlyFcTog.addEventListener('change',e=>{
       this._config={...this._config,show_hourly_forecast:e.target.checked}; this._fire();
     });
-    const minimalTog=this.shadowRoot.getElementById('minimalTog');
-    if(minimalTog) minimalTog.addEventListener('change',e=>{
-      this._config={...this._config,minimal_mode:e.target.checked}; this._fire();
-    });
-
     // ── Pricing ─────────────────────────────────────────────────
     this.shadowRoot.getElementById('curInput').addEventListener('change',e=>{
       this._config={...this._config,currency:e.target.value.trim()||'đ'}; this._fire();
@@ -1475,8 +1576,87 @@ class SolarWeatherCardEditor extends HTMLElement {
       });
     }
 
+    // ── Rooms inputs ─────────────────────────────────────────────
+    const roomCountSl=this.shadowRoot.getElementById('roomCountSl');
+    if(roomCountSl){
+      roomCountSl.addEventListener('input',e=>{
+        this.shadowRoot.getElementById('roomCountV').textContent=e.target.value;
+      });
+      roomCountSl.addEventListener('change',e=>{
+        this._config={...this._config,room_count:parseInt(e.target.value)};
+        this._fire();
+        // Re-render to show/hide room fields
+        this._render();
+        requestAnimationFrame(()=>this._syncPickers());
+      });
+    }
+    // ── Room X/Y offset sliders ─────────────────────────────────
+    const _getRoomOffsets=()=>{
+      const maxR=Math.min(6,Math.max(2,parseInt(this._config.room_count??4)));
+      const offs=[...(this._config.room_offsets||Array.from({length:maxR},()=>({x:0,y:0})))];
+      while(offs.length<maxR) offs.push({x:0,y:0});
+      return offs;
+    };
+    this.shadowRoot.querySelectorAll('.room-ox').forEach(sl=>{
+      sl.addEventListener('input',e=>{
+        const ri=parseInt(e.target.dataset.ri);
+        const sp=this.shadowRoot.querySelector(`.room-oxv[data-ri="${ri}"]`);
+        if(sp) sp.textContent=e.target.value;
+      });
+      sl.addEventListener('change',e=>{
+        const ri=parseInt(e.target.dataset.ri);
+        const offs=_getRoomOffsets();
+        offs[ri]={...offs[ri],x:parseInt(e.target.value)};
+        this._config={...this._config,room_offsets:offs}; this._fire();
+      });
+    });
+    this.shadowRoot.querySelectorAll('.room-oy').forEach(sl=>{
+      sl.addEventListener('input',e=>{
+        const ri=parseInt(e.target.dataset.ri);
+        const sp=this.shadowRoot.querySelector(`.room-oyv[data-ri="${ri}"]`);
+        if(sp) sp.textContent=e.target.value;
+      });
+      sl.addEventListener('change',e=>{
+        const ri=parseInt(e.target.dataset.ri);
+        const offs=_getRoomOffsets();
+        offs[ri]={...offs[ri],y:parseInt(e.target.value)};
+        this._config={...this._config,room_offsets:offs}; this._fire();
+      });
+    });
+    this.shadowRoot.querySelectorAll('.room-reset-pos').forEach(btn=>{
+      btn.addEventListener('click',e=>{
+        const ri=parseInt(e.target.dataset.ri);
+        const offs=_getRoomOffsets();
+        offs[ri]={x:0,y:0};
+        this._config={...this._config,room_offsets:offs}; this._fire(); this._render();
+      });
+    });
+    this.shadowRoot.querySelectorAll('.room-name,.room-icon').forEach(inp=>{
+      inp.addEventListener('change',e=>{
+        const ri=parseInt(e.target.dataset.ri);
+        const isName=e.target.classList.contains('room-name');
+        const c={...this._config};
+        const maxR=Math.min(6,Math.max(2,parseInt(c.room_count??4)));
+        const rooms=[...(c.rooms||Array.from({length:maxR},()=>({})))];
+        while(rooms.length<maxR) rooms.push({});
+        rooms[ri]={...rooms[ri],[isName?'name':'icon']:e.target.value.trim()};
+        c.rooms=rooms; this._config=c; this._fire();
+      });
+    });
+    this.shadowRoot.querySelectorAll('.room-entity').forEach(picker=>{
+      picker.addEventListener('value-changed',e=>{
+        const ri=parseInt(picker.dataset.ri);
+        const c={...this._config};
+        const maxR=Math.min(6,Math.max(2,parseInt(c.room_count??4)));
+        const rooms=[...(c.rooms||Array.from({length:maxR},()=>({})))];
+        while(rooms.length<maxR) rooms.push({});
+        rooms[ri]={...rooms[ri],entity:e.detail.value||''};
+        c.rooms=rooms; this._config=c; this._fire();
+      });
+    });
+
     // ── ha-entity-picker events ─────────────────────────────────
-    this.shadowRoot.querySelectorAll('ha-entity-picker').forEach(picker=>{
+    this.shadowRoot.querySelectorAll('ha-entity-picker[data-key]').forEach(picker=>{
       picker.addEventListener('value-changed',e=>{
         const k=picker.dataset.key, v=e.detail.value;
         const c={...this._config};
@@ -1502,7 +1682,18 @@ customElements.define('solar-weather-card-editor',SolarWeatherCardEditor);
 // CARD
 // ═══════════════════════════════════════════════════════════════
 class SolarWeatherCard extends HTMLElement {
-  constructor(){ super(); this.attachShadow({mode:'open'}); this._hass=null; this._config={}; this._iv=null; this._raf=null; this._lastSig=null; }
+  constructor(){
+    super();
+    this.attachShadow({mode:'open'});
+    this._hass=null;
+    this._config={};
+    this._iv=null;
+    this._raf=null;
+    this._lastSig=null;
+    this._animSig=null;   // signature riêng cho anim layer
+    this._animStart=null;
+    this._shellReady=false; // đã tạo shell (anim + data layers) chưa
+  }
 
   static getConfigElement(){ return document.createElement('solar-weather-card-editor'); }
   static getStubConfig(){
@@ -1531,6 +1722,7 @@ class SolarWeatherCard extends HTMLElement {
   setConfig(c){
     this._config=c||{};
     this._lastSig=null;
+    this._animSig=null;   // force anim layer rebuild khi config thay đổi
     if(this._hass) this._schedRender();
   }
   set hass(h){
@@ -1545,6 +1737,8 @@ class SolarWeatherCard extends HTMLElement {
   disconnectedCallback(){
     if(this._iv) clearInterval(this._iv);
     if(this._raf) cancelAnimationFrame(this._raf);
+    this._shellReady=false;
+    this._animNode=null;
   }
   // Debounce render — double-rAF: gộp nhiều hass update liên tiếp thành 1 lần render,
   // tránh render giữa chừng khi HA push nhiều state cùng 1 frame
@@ -1560,8 +1754,7 @@ class SolarWeatherCard extends HTMLElement {
     if(sig===this._lastSig) return; // không có gì thay đổi
     this._lastSig=sig;
     this._render();
-  }
-  _buildSig(){
+  }  _buildSig(){
     if(!this._hass||!this._config) return '';
     const keys=[
       'solar_pv1_entity','solar_pv2_entity',
@@ -1569,17 +1762,59 @@ class SolarWeatherCard extends HTMLElement {
       'grid_flow_entity','grid_import_entity','grid_export_entity',
       'home_consumption_entity','inverter_switch_entity','grid_direct_entity',
       'weather_entity','temperature_entity','humidity_entity',
+      'pressure_entity','uv_entity',
       'solar_today_entity','solar_dailyuse_entity','solar_live_entity',
       'solcast_today_entity','solcast_tomorrow_entity','solcast_detail_entity',
       'solar_live_curve_entity','grid_today_entity','consumption_today_entity',
+      'grid_export_today_entity',
       'inverter_status_entity','battery_voltage_entity',
+      'battery_temp_entity','inverter_temp_entity',
+      'hourly_forecast_entity',
     ];
+    // Với weather_entity: track thêm last_changed để bắt forecast attribute update
+    const weatherId=this._config.weather_entity;
+    const weatherExtra=weatherId&&this._hass.states[weatherId]
+      ?this._hass.states[weatherId].last_changed||''
+      :'';
+    // Với hourly_forecast_entity: track last_changed thay vì toàn bộ state (state luôn là JSON lớn)
+    const hourlyId=this._config.hourly_forecast_entity;
+    const hourlyExtra=hourlyId&&this._hass.states[hourlyId]
+      ?this._hass.states[hourlyId].last_changed||''
+      :'';
     return keys.map(k=>{
-      const id=this._config[k];
-      if(!id) return '';
-      const s=this._hass.states[id];
-      return s?s.state:'';
-    }).join('|');
+      const id=this._config[k]; if(!id) return '';
+      // hourly_forecast_entity dùng last_changed thay vì state (state rất lớn, parse chậm)
+      if(k==='hourly_forecast_entity') return hourlyExtra;
+      const s=this._hass.states[id]; return s?s.state:'';
+    }).join('|')+'|'+weatherExtra
+      +'|'+(this._config.room_count??4)+'|'+(this._config.rooms||[]).map(r=>{
+      const id=r&&r.entity; if(!id||!this._hass) return '';
+      const s=this._hass.states[id]; return s?s.state:'';
+    }).join('|')+'|'+(JSON.stringify(this._config.room_offsets||[]));
+  }
+
+  // Signature cho anim layer — chỉ thay đổi khi layout/màu/style thay đổi
+  // (không phụ thuộc vào giá trị sensor thực tế)
+  _buildAnimSig(){
+    const c=this._config;
+    return [
+      c.flow_style||'particle',
+      c.node_bat_x??-40, c.node_grd_x??295,
+      c.node_inv_y??220,  c.node_hom_y??400,
+      c.node_scale??1.0,
+      c.room_count??4,
+      JSON.stringify(c.room_offsets||[]),
+      c.color_flow_solar||'', c.color_flow_grid||'',
+      c.color_flow_batt||'',  c.color_flow_home||'',
+      c.particle_mult??1.0,
+      c.minimal_mode===true?'1':'0',
+      // sensor keys: khi entity được thêm/xóa cần rebuild path
+      c.solar_pv1_entity||'', c.solar_pv2_entity||'',
+      c.battery_flow_entity||'', c.battery_charge_entity||'', c.battery_discharge_entity||'',
+      c.grid_flow_entity||'', c.grid_import_entity||'', c.grid_export_entity||'',
+      c.home_consumption_entity||'', c.inverter_switch_entity||'', c.grid_direct_entity||'',
+      (c.rooms||[]).map(r=>r&&r.entity||'').join(','),
+    ].join('|');
   }
   // Chỉ update đồng hồ mà không render lại SVG
   _tickClock(){
@@ -1594,6 +1829,48 @@ class SolarWeatherCard extends HTMLElement {
     if(apEl) apEl.textContent=ap;
   }
   getCardSize(){ return 14; }
+
+  // ── Two-layer DOM helpers ────────────────────────────────────
+  // Trả về flow SVG element đang sống (nếu có)
+  _getAnimLayer(){ return this.shadowRoot.getElementById('swc-flow-svg'); }
+  // Các zone update độc lập — không bao giờ xóa wrap/anim
+  _getTopLayer(){    return this.shadowRoot.getElementById('swc-top'); }
+  _getBotLayer(){    return this.shadowRoot.getElementById('swc-bot'); }
+  _getSunBar(){      return this.shadowRoot.getElementById('swc-sun-bar'); }
+  _getSvgData(){     return this.shadowRoot.getElementById('swc-svg-data'); }
+  // Legacy alias — giữ để không break các chỗ khác nếu có
+  _getDataLayer(){   return this.shadowRoot.getElementById('swc-top'); }
+
+  // Inject hoặc reuse flow SVG trong .swc-svg-wrap
+  // needRebuild=true  → tạo SVG mới (layout/màu/style thay đổi)
+  // needRebuild=false → chỉ appendChild SVG cũ vào wrap mới (wrap vừa bị data innerHTML tạo lại)
+  //                     SVG cũ vẫn giữ nguyên, animation KHÔNG bị reset
+  _injectAnimLayer(FL, fpDefs, svgH, needRebuild, vbX, vbW){
+    const wrap=this.shadowRoot.querySelector('.swc-svg-wrap');
+    if(!wrap) return;
+    // Nếu không cần rebuild và SVG cũ còn tồn tại: chỉ move nó vào wrap mới
+    if(!needRebuild && this._animNode){
+      // Cập nhật viewBox nếu layout thay đổi (node positions)
+      if(this._animNode.getAttribute('viewBox')!==`${vbX} 0 ${vbW} ${svgH}`){
+        this._animNode.setAttribute('viewBox',`${vbX} 0 ${vbW} ${svgH}`);
+      }
+      if(!this._animNode.isConnected) wrap.appendChild(this._animNode);
+      return;
+    }
+    // Tạo mới SVG bằng DOM API (không dùng innerHTML để có thể cache node)
+    const ns='http://www.w3.org/2000/svg';
+    const svg=document.createElementNS(ns,'svg');
+    svg.id='swc-flow-svg';
+    svg.setAttribute('viewBox',`${vbX} 0 ${vbW} ${svgH}`);
+    svg.style.cssText='position:absolute;inset:0;width:100%;height:100%;overflow:visible;will-change:transform;pointer-events:none;z-index:3;';
+    svg.innerHTML=`<defs>
+      <filter id="swc-pBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+      <filter id="swc-pBlurSm" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.5"/></filter>
+      ${fpDefs}
+    </defs>${FL}`;
+    wrap.appendChild(svg);
+    this._animNode=svg;
+  }
 
   _g(k,def='--'){
     const id=this._config[k]; if(!id||!this._hass) return def;
@@ -1762,116 +2039,136 @@ class SolarWeatherCard extends HTMLElement {
     return val%1===0?String(val):val.toFixed(2);
   }
 
-  // flowLevel với type + particle multiplier (0.2–1.0) để giảm tải trên thiết bị yếu
+  // flowLevel với type + particle multiplier
   _flowLevel(w,type='default'){
     const mult=parseFloat(this._config.particle_mult??1.0);
-    const _sc=(fl)=>{
-      // Chỉ scale count khi count>6 (>1000W) — count thấp giữ nguyên
-      if(fl.count<=6) return fl;
-      return{...fl, count:Math.max(6,Math.round(fl.count*mult))};
-    };
+    const _sc=(fl)=>{ if(fl.count<=6) return fl; return{...fl,count:Math.max(6,Math.round(fl.count*mult))}; };
     if(type==='solar'){
-      if(w<200)  return _sc({dur:4.0,count:2,size:2.0});  if(w<600)  return _sc({dur:3.2,count:4,size:2.4});
-      if(w<1200) return _sc({dur:2.5,count:6,size:2.8});  if(w<2500) return _sc({dur:1.8,count:9,size:3.2});
-      if(w<4000) return _sc({dur:1.3,count:13,size:3.6}); if(w<6000) return _sc({dur:0.9,count:17,size:4.0});
-      return _sc({dur:0.6,count:22,size:4.5});
+      if(w<200)  return _sc({dur:4.0,count:1,size:1.8}); if(w<600)  return _sc({dur:3.2,count:2,size:2.2});
+      if(w<1200) return _sc({dur:2.7,count:3,size:2.5}); if(w<2500) return _sc({dur:2.4,count:3,size:2.8});
+      if(w<4000) return _sc({dur:1.8,count:4,size:3.2}); if(w<6000) return _sc({dur:1.2,count:5,size:3.5});
+      return _sc({dur:0.9,count:6,size:3.8});
     }
     if(type==='battery'||type==='grid'||type==='home'){
-      if(w<150)  return _sc({dur:4.0,count:2,size:2.0});  if(w<500)  return _sc({dur:3.2,count:4,size:2.4});
-      if(w<1000) return _sc({dur:2.5,count:6,size:2.8});  if(w<2000) return _sc({dur:1.8,count:9,size:3.2});
-      if(w<3000) return _sc({dur:1.3,count:13,size:3.6}); if(w<4500) return _sc({dur:0.9,count:17,size:4.0});
-      return _sc({dur:0.6,count:22,size:4.5});
+      if(w<150)  return _sc({dur:4.0,count:1,size:1.8}); if(w<500)  return _sc({dur:3.2,count:2,size:2.2});
+      if(w<1000) return _sc({dur:2.7,count:3,size:2.5}); if(w<2000) return _sc({dur:2.4,count:3,size:2.8});
+      if(w<3000) return _sc({dur:1.8,count:4,size:3.2}); if(w<4500) return _sc({dur:1.5,count:5,size:3.5});
+      return _sc({dur:0.9,count:6,size:3.8});
     }
-    if(w<300) return _sc({dur:2.2,count:5,size:2.6}); if(w<800) return _sc({dur:1.7,count:8,size:3.0});
-    if(w<2000) return _sc({dur:1.1,count:12,size:3.5}); if(w<4000) return _sc({dur:0.65,count:18,size:4.0});
-    return _sc({dur:0.30,count:25,size:4.5});
+    if(type==='room'){
+      if(w<50)   return _sc({dur:4.5,count:1,size:1.6}); if(w<200)  return _sc({dur:3.5,count:1,size:2.0});
+      if(w<500)  return _sc({dur:3.2,count:2,size:2.3}); if(w<1000) return _sc({dur:2.9,count:2,size:2.6});
+      if(w<2000) return _sc({dur:2.4,count:3,size:2.9}); if(w<3000) return _sc({dur:1.5,count:4,size:3.2});
+      return _sc({dur:0.9,count:5,size:3.5});
+    }
+    if(w<200)  return _sc({dur:4.0,count:1,size:1.8}); if(w<600)  return _sc({dur:3.5,count:2,size:2.2});
+    if(w<1200) return _sc({dur:3.0,count:3,size:2.5}); if(w<2500) return _sc({dur:2.5,count:3,size:2.8});
+    if(w<4000) return _sc({dur:1.9,count:4,size:3.2}); if(w<6000) return _sc({dur:1.5,count:5,size:3.5});
+    return _sc({dur:1.2,count:6,size:3.8});
   }
 
-  // ── Particle flow ────────────────────────────────────────────
-  // Dùng seeded pseudo-random thay Math.random() để SVG ổn định giữa các render,
-  // tránh nháy do particle coordinates thay đổi mỗi lần rebuild DOM
-  _particles(pathD,pid,color,gc,fl){
+  // ── YAML-style particle flow (stroke-dasharray animate — nhẹ hơn, ổn định hơn) ──
+  _particles(pathD,pid,color,gc,fl,elapsed=0){
     const rng=(seed)=>((seed*1664525+1013904223)&0x7fffffff)/0x7fffffff;
-    let h=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="1" stroke-dasharray="4,18" opacity="0.15" stroke-linecap="round"/>`;
-    for(let j=0;j<Math.ceil(fl.count/3);j++){ const d=(j/Math.ceil(fl.count/3)*fl.dur).toFixed(3); h+=`<circle r="${(fl.size*2.6).toFixed(2)}" fill="${gc}" opacity="0.18" filter="url(#pBlur)"><animateMotion dur="${fl.dur}s" begin="-${d}s" repeatCount="indefinite" rotate="auto"><mpath href="#${pid}"/></animateMotion></circle>`; }
-    for(let i=0;i<fl.count;i++){
-      const r1=rng(i*7+1),r2=rng(i*13+3);
-      const d=(i/fl.count*fl.dur).toFixed(3);
-      h+=`<circle r="${(fl.size*(0.5+r1*0.5)).toFixed(2)}" fill="${color}" opacity="${(0.6+r2*0.4).toFixed(2)}"><animateMotion dur="${fl.dur}s" begin="-${d}s" repeatCount="indefinite" rotate="auto"><mpath href="#${pid}"/></animateMotion></circle>`;
+    let h=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="0.6" stroke-dasharray="3,22" opacity="0.08" stroke-linecap="round"/>`;
+    const n=fl.count, spreadMax=fl.size*1.5;
+    for(let i=0;i<n;i++){
+      const r1=rng(i*137+31)%97/97, r2=rng(i*251+73)%89/89, r3=rng(i*179+11)%83/83;
+      const r4=rng(i*313+53)%79/79, r5=rng(i*401+17)%71/71, r6=rng(i*461+29)%67/67;
+      const dashLen=(2+r1*r1*14).toFixed(1);
+      const gapLen=(30+r2*40).toFixed(1);
+      const cycle=parseFloat(dashLen)+parseFloat(gapLen);
+      const dur=(fl.dur*(0.55+r3*0.9)).toFixed(2);
+      // Phase: combine random offset + elapsed so animation continues from same point after re-render
+      const durF=parseFloat(dur);
+      const rawPhase=r4*durF;
+      const phaseOff=((rawPhase+elapsed)%durF).toFixed(3);
+      const spreadFrac=r6*r6;
+      const sign=(i%2===0)?1:-1;
+      const ox=(sign*spreadFrac*spreadMax).toFixed(1);
+      const oy=(sign*spreadFrac*spreadMax*0.35).toFixed(1);
+      const bright=r5>0.78, dark=r5<0.22;
+      let strokeColor, opacity, strokeW;
+      if(bright){ strokeColor='rgba(255,255,255,0.88)'; opacity=(0.60+r1*0.22).toFixed(2); strokeW='1.2'; }
+      else if(dark){ strokeColor=color; opacity=(0.10+r2*0.12).toFixed(2); strokeW='0.5'; }
+      else { strokeColor=color; opacity=(0.28+r3*0.38).toFixed(2); strokeW=(0.8+r4*0.6).toFixed(1); }
+      const distFade=(1-spreadFrac*0.65).toFixed(2);
+      opacity=(parseFloat(opacity)*parseFloat(distFade)).toFixed(2);
+      if(bright){
+        h+=`<g transform="translate(${ox},${oy})"><path d="${pathD}" fill="none" stroke="${gc}" stroke-width="3" stroke-dasharray="${dashLen} ${gapLen}" stroke-linecap="round" opacity="${(0.18*parseFloat(distFade)).toFixed(2)}" filter="url(#pBlur)"><animate attributeName="stroke-dashoffset" from="${cycle.toFixed(1)}" to="0" dur="${dur}s" begin="-${phaseOff}s" repeatCount="indefinite" calcMode="linear"/></path></g>`;
+      }
+      // Note: animateMotion removed — causes jank on SVG re-render due to position reset
+      h+=`<g transform="translate(${ox},${oy})"><path d="${pathD}" fill="none" stroke="${strokeColor}" stroke-width="${strokeW}" stroke-dasharray="${dashLen} ${gapLen}" stroke-linecap="round" opacity="${opacity}"><animate attributeName="stroke-dashoffset" from="${cycle.toFixed(1)}" to="0" dur="${dur}s" begin="-${phaseOff}s" repeatCount="indefinite" calcMode="linear"/></path></g>`;
     }
-    const hc=Math.ceil(fl.count*0.4);
-    for(let k=0;k<hc;k++){ const d=(k/hc*fl.dur).toFixed(3); h+=`<circle r="${(fl.size*0.45).toFixed(2)}" fill="rgba(255,255,255,.92)" opacity="0.85" filter="url(#pBlurSm)"><animateMotion dur="${fl.dur}s" begin="-${d}s" repeatCount="indefinite" rotate="auto"><mpath href="#${pid}"/></animateMotion></circle>`; }
-    const sk=Math.ceil(fl.count*0.55);
-    for(let s=0;s<sk;s++){
-      const sd=(rng(s*17+5)*fl.dur).toFixed(3),ox=((rng(s*23+7)-0.5)*12).toFixed(1),oy=((rng(s*31+11)-0.5)*12).toFixed(1);
-      h+=`<g transform="translate(${ox},${oy})"><circle r="${(0.9+rng(s*37+13)*1.8).toFixed(2)}" fill="${color}" opacity="${(0.22+rng(s*41+17)*0.45).toFixed(2)}"><animateMotion dur="${fl.dur}s" begin="-${sd}s" repeatCount="indefinite"><mpath href="#${pid}"/></animateMotion></circle></g>`;
-    }
+    // core bright line — use elapsed to keep phase continuous across re-renders
+    const coreDash=(fl.size*2.5).toFixed(1), coreGap=(fl.size*14).toFixed(1), coreDur=(fl.dur*0.7).toFixed(2);
+    const coreDurF=parseFloat(coreDur), corePhase=(elapsed%coreDurF).toFixed(3);
+    const coreCycle=(parseFloat(coreDash)+parseFloat(coreGap)).toFixed(1);
+    h+=`<path d="${pathD}" fill="none" stroke="rgba(255,255,255,0.70)" stroke-width="1.2" stroke-dasharray="${coreDash} ${coreGap}" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="${coreCycle}" to="0" dur="${coreDur}s" begin="-${corePhase}s" repeatCount="indefinite" calcMode="linear"/></path>`;
+    h+=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="0.8" stroke-dasharray="${coreDash} ${coreGap}" stroke-linecap="round" opacity="0.75"><animate attributeName="stroke-dashoffset" from="${coreCycle}" to="0" dur="${coreDur}s" begin="-${corePhase}s" repeatCount="indefinite" calcMode="linear"/></path>`;
     return h;
   }
 
-  // ── Wave flow (từ YAML mới) ───────────────────────────────────
-  _wave(pathD,pid,color,gc,fl){
+  // ── Wave flow ────────────────────────────────────────────────
+  _wave(pathD,pid,color,gc,fl,elapsed=0){
     const rng=(seed)=>((seed*1664525+1013904223)&0x7fffffff)/0x7fffffff;
     let h='';
-    const dashDur=(fl.dur*0.8).toFixed(2);
+    const dashDurF=fl.dur*0.8, dashDur=dashDurF.toFixed(2);
     const dashLen=(8+fl.size*1.5).toFixed(1);
     const gapLen=(6+fl.size*1.2).toFixed(1);
     const dashTotal=(parseFloat(dashLen)+parseFloat(gapLen)).toFixed(1);
-    // base dash track
-    h+=`<path d="${pathD}" fill="none" stroke="${gc}" stroke-width="6" stroke-dasharray="${dashLen} ${gapLen}" stroke-linecap="round" opacity="0.25" filter="url(#pBlur)"><animate attributeName="stroke-dashoffset" from="${dashTotal}" to="0" dur="${dashDur}s" repeatCount="indefinite" calcMode="linear"/></path>`;
-    h+=`<path d="${pathD}" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.8" stroke-dasharray="${dashLen} ${gapLen}" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="${dashTotal}" to="0" dur="${dashDur}s" repeatCount="indefinite" calcMode="linear"/></path>`;
-    h+=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="1.0" stroke-dasharray="${dashLen} ${gapLen}" stroke-linecap="round" opacity="0.85"><animate attributeName="stroke-dashoffset" from="${dashTotal}" to="0" dur="${dashDur}s" repeatCount="indefinite" calcMode="linear"/></path>`;
-    // sine wave particles — giảm số lượng để nhẹ hơn
+    const dashPhase=(elapsed%dashDurF).toFixed(3);
+    h+=`<path d="${pathD}" fill="none" stroke="${gc}" stroke-width="6" stroke-dasharray="${dashLen} ${gapLen}" stroke-linecap="round" opacity="0.25" filter="url(#pBlur)"><animate attributeName="stroke-dashoffset" from="${dashTotal}" to="0" dur="${dashDur}s" begin="-${dashPhase}s" repeatCount="indefinite" calcMode="linear"/></path>`;
+    h+=`<path d="${pathD}" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.8" stroke-dasharray="${dashLen} ${gapLen}" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="${dashTotal}" to="0" dur="${dashDur}s" begin="-${dashPhase}s" repeatCount="indefinite" calcMode="linear"/></path>`;
+    h+=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="1.0" stroke-dasharray="${dashLen} ${gapLen}" stroke-linecap="round" opacity="0.85"><animate attributeName="stroke-dashoffset" from="${dashTotal}" to="0" dur="${dashDur}s" begin="-${dashPhase}s" repeatCount="indefinite" calcMode="linear"/></path>`;
     const waveDefs=[
-      {amp:6, period:28, dur:fl.dur*0.9,  ox:0,  op:0.9,  sc:'rgba(255,255,255,0.92)'},
-      {amp:10,period:38, dur:fl.dur*1.1,  ox:3,  op:0.6,  sc:color},
-      {amp:8, period:22, dur:fl.dur*0.75, ox:-3, op:0.45, sc:gc},
-      {amp:14,period:48, dur:fl.dur*1.25, ox:5,  op:0.3,  sc:color},
+      {amp:6,period:28,dur:fl.dur*0.9,ox:0,op:0.9,sc:'rgba(255,255,255,0.92)'},
+      {amp:10,period:38,dur:fl.dur*1.1,ox:3,op:0.6,sc:color},
+      {amp:8,period:22,dur:fl.dur*0.75,ox:-3,op:0.45,sc:gc},
     ];
-    // Giảm wc và sineCount để ít element hơn (~60% của code cũ)
-    const wc=Math.min(3,Math.max(1,Math.round(fl.count/5)));
+    const wc=Math.min(2,Math.max(1,Math.round(fl.count/5)));
     for(let wi=0;wi<wc;wi++){
-      const wd=waveDefs[wi],sineCount=Math.round(fl.count*0.5),sineDur=wd.dur.toFixed(2);
+      const wd=waveDefs[wi],sineCount=Math.round(fl.count*0.5),sineDurF=wd.dur,sineDur=sineDurF.toFixed(2);
+      // Replace animateMotion (causes jank) with staggered dash animations offset by translate
+      const sineDashLen=(3+wi*1.5).toFixed(1);
+      const sineDashGap=(40+wi*10).toFixed(1);
+      const sineCycle=(parseFloat(sineDashLen)+parseFloat(sineDashGap)).toFixed(1);
       for(let si=0;si<sineCount;si++){
         const frac=si/sineCount,phase=frac*Math.PI*2;
         const sY=(wd.amp*Math.sin(phase+wi*1.1)).toFixed(1);
         const sX=(wd.ox+wd.amp*0.3*Math.cos(phase*0.5)).toFixed(1);
-        const sDelay=(frac*parseFloat(sineDur)).toFixed(3);
-        const sOp=(wd.op*(0.5+0.5*Math.abs(Math.sin(phase)))).toFixed(2);
-        const sR=(0.9+Math.abs(Math.sin(phase))*1.4).toFixed(2);
-        h+=`<g transform="translate(${sX},${sY})"><circle r="${sR}" fill="${wd.sc}" opacity="${sOp}"><animateMotion dur="${sineDur}s" begin="-${sDelay}s" repeatCount="indefinite" rotate="auto"><mpath href="#${pid}"/></animateMotion></circle></g>`;
-        // Giảm highlight dot: chỉ mỗi 8 thay vì 5
-        if(si%8===0) h+=`<g transform="translate(${(parseFloat(sX)+1.5).toFixed(1)},${(parseFloat(sY)-1.5).toFixed(1)})"><circle r="0.6" fill="rgba(255,255,255,0.95)" opacity="${(wd.op*0.7).toFixed(2)}"><animateMotion dur="${sineDur}s" begin="-${sDelay}s" repeatCount="indefinite" rotate="auto"><mpath href="#${pid}"/></animateMotion></circle></g>`;
+        const rawDelay=frac*sineDurF;
+        const sDelay=((rawDelay+elapsed)%sineDurF).toFixed(3);
+        const sOp=(wd.op*(0.5+0.5*Math.abs(Math.sin(phase)))*0.6).toFixed(2);
+        h+=`<g transform="translate(${sX},${sY})"><path d="${pathD}" fill="none" stroke="${wd.sc}" stroke-width="1.2" stroke-dasharray="${sineDashLen} ${sineDashGap}" stroke-linecap="round" opacity="${sOp}"><animate attributeName="stroke-dashoffset" from="${sineCycle}" to="0" dur="${sineDur}s" begin="-${sDelay}s" repeatCount="indefinite" calcMode="linear"/></path></g>`;
       }
     }
-    // dust — giảm từ count*1.2 xuống count*0.6, dùng seeded rng
-    const dustCount=Math.round(fl.count*0.6);
+    const dustCount=Math.round(fl.count*0.5);
     for(let di=0;di<dustCount;di++){
       const r1=rng(di*167+41),r2=rng(di*233+61),r3=rng(di*311+23),r4=rng(di*421+37);
-      const dox=((r1-0.5)*fl.size*7).toFixed(1),doy=((r2-0.5)*fl.size*7).toFixed(1);
-      const dDur=(fl.dur*(0.6+r3*0.8)).toFixed(2),dDelay=(r4*parseFloat(dDur)).toFixed(3);
-      h+=`<g transform="translate(${dox},${doy})"><circle r="${(0.4+r1*0.9).toFixed(2)}" fill="${r3>0.6?'rgba(255,255,255,0.9)':color}" opacity="${(0.15+r2*0.45).toFixed(2)}"><animateMotion dur="${dDur}s" begin="-${dDelay}s" repeatCount="indefinite"><mpath href="#${pid}"/></animateMotion></circle></g>`;
-    }
-    // bright dots
-    const dotCount=Math.max(2,Math.round(fl.count/3));
-    for(let dti=0;dti<dotCount;dti++){
-      const br1=rng(dti*191+47),br2=rng(dti*277+83);
-      const bDur=(fl.dur*(0.45+br1*0.5)).toFixed(2),bDelay=(br2*parseFloat(bDur)).toFixed(3);
-      const bR=(1.2+br1*1.6).toFixed(2);
-      h+=`<circle r="${(parseFloat(bR)*2.8).toFixed(1)}" fill="${gc}" opacity="0.3" filter="url(#pBlurSm)"><animateMotion dur="${bDur}s" begin="-${bDelay}s" repeatCount="indefinite"><mpath href="#${pid}"/></animateMotion></circle>`;
-      h+=`<circle r="${bR}" fill="rgba(255,255,255,0.98)" opacity="${(0.7+br2*0.3).toFixed(2)}"><animateMotion dur="${bDur}s" begin="-${bDelay}s" repeatCount="indefinite"><mpath href="#${pid}"/></animateMotion></circle>`;
+      const dox=((r1-0.5)*fl.size*6).toFixed(1),doy=((r2-0.5)*fl.size*6).toFixed(1);
+      const dDurF=fl.dur*(0.6+r3*0.8),dDur=dDurF.toFixed(2);
+      const dDelay=((r4*dDurF+elapsed)%dDurF).toFixed(3);
+      const dDash=(1.5+r1*3).toFixed(1), dGap=(35+r2*25).toFixed(1);
+      const dCycle=(parseFloat(dDash)+parseFloat(dGap)).toFixed(1);
+      h+=`<g transform="translate(${dox},${doy})"><path d="${pathD}" fill="none" stroke="${r3>0.6?'rgba(255,255,255,0.7)':color}" stroke-width="${(0.5+r1*0.8).toFixed(1)}" stroke-dasharray="${dDash} ${dGap}" stroke-linecap="round" opacity="${(0.12+r2*0.3).toFixed(2)}"><animate attributeName="stroke-dashoffset" from="${dCycle}" to="0" dur="${dDur}s" begin="-${dDelay}s" repeatCount="indefinite" calcMode="linear"/></path></g>`;
     }
     return h;
   }
 
   // ── Line flow ────────────────────────────────────────────────
   _sf(w,mx,mn,mx2){ return (mn+Math.max(0,Math.min(1,w/mx))*(mx2-mn)).toFixed(2); }
-  _lineFlow(path,w,maxW,c1,c2,c3){
-    const dur=this._sf(w,maxW,1.5,0.4),w1=this._sf(w,maxW,1.0,2.5),w2=this._sf(w,maxW,1.5,4.0),w3=this._sf(w,maxW,2.5,6.0);
+  _lineFlow(path,w,maxW,c1,c2,c3,elapsed=0){
+    const durF=parseFloat(this._sf(w,maxW,1.5,0.4));
+    const dur=durF.toFixed(2);
+    const w1=this._sf(w,maxW,1.0,2.5),w2=this._sf(w,maxW,1.5,4.0),w3=this._sf(w,maxW,2.5,6.0);
+    const p0=(elapsed%durF).toFixed(3);
+    const p1=((elapsed+0.3)%durF).toFixed(3);
+    const p2=((elapsed+0.15)%durF).toFixed(3);
     return `<path d="${path}" fill="none" stroke="${c3.replace('X','0.12')}" stroke-width="${w3}" stroke-linecap="round"/>
-      <path d="${path}" fill="none" stroke="${c1.replace('X','0.92')}" stroke-width="${w1}" stroke-dasharray="28,120" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="148" to="0" dur="${dur}s" repeatCount="indefinite"/></path>
-      <path d="${path}" fill="none" stroke="${c2.replace('X','0.85')}" stroke-width="${w2}" stroke-dasharray="12,120" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="132" to="0" dur="${dur}s" begin="0.3s" repeatCount="indefinite"/></path>
-      <path d="${path}" fill="none" stroke="${c3.replace('X','0.5')}" stroke-width="${w3}" stroke-dasharray="6,120" stroke-linecap="round" filter="url(#sf)"><animate attributeName="stroke-dashoffset" from="126" to="0" dur="${dur}s" begin="0.15s" repeatCount="indefinite"/></path>`;
+      <path d="${path}" fill="none" stroke="${c1.replace('X','0.92')}" stroke-width="${w1}" stroke-dasharray="28,120" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="148" to="0" dur="${dur}s" begin="-${p0}s" repeatCount="indefinite" calcMode="linear"/></path>
+      <path d="${path}" fill="none" stroke="${c2.replace('X','0.85')}" stroke-width="${w2}" stroke-dasharray="12,120" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="132" to="0" dur="${dur}s" begin="-${p1}s" repeatCount="indefinite" calcMode="linear"/></path>
+      <path d="${path}" fill="none" stroke="${c3.replace('X','0.5')}" stroke-width="${w3}" stroke-dasharray="6,120" stroke-linecap="round" filter="url(#sf)"><animate attributeName="stroke-dashoffset" from="126" to="0" dur="${dur}s" begin="-${p2}s" repeatCount="indefinite" calcMode="linear"/></path>`;
   }
 
   _svgCard(x,y,w,h,cc,glow,cbg,icoFn,val,dir,sub,active,showGlow,minimal){
@@ -1915,6 +2212,8 @@ class SolarWeatherCard extends HTMLElement {
   }
 
   _unconfigured(){
+    this._shellReady=false;
+    this._animNode=null;
     this.shadowRoot.innerHTML=`<style>:host{display:block}</style>
       <ha-card style="padding:32px;text-align:center;">
         <div style="font-size:48px;margin-bottom:16px;">☀️🔋</div>
@@ -1927,6 +2226,10 @@ class SolarWeatherCard extends HTMLElement {
     if(!this._hass) return;
     const cfg=this._config;
     if(!Object.values(cfg).some(v=>v&&String(v).trim()&&!['particle','wave','line','vi','en','de','it','fr','nl','pl','sv','hu','12h','24h'].includes(v)&&isNaN(v)&&v!=='đ'&&v!=='€'&&v!=='$')){ this._unconfigured(); return; }
+
+    // Track how long animations have been running so begin offsets keep phase continuity across re-renders
+    if(!this._animStart) this._animStart=performance.now();
+    const _animElapsed=(performance.now()-this._animStart)/1000; // seconds
 
     const lang=cfg.language||'vi';
     const T=I18N[lang]||I18N.vi;
@@ -2144,14 +2447,16 @@ class SolarWeatherCard extends HTMLElement {
     const pct=Math.round(t*100);
     const dayMin=SET-RISE,nightMin=1440-dayMin;
     const fmtDur=mn=>`${Math.floor(mn/60)}h ${mn%60}m`;
-    const bx=(1-t)*(1-t)*14+2*(1-t)*t*173+t*t*332;
-    const by=(1-t)*(1-t)*65+2*(1-t)*t*(-45)+t*t*65;
+    // Round tọa độ mặt trời/mặt trăng về số nguyên — vị trí thay đổi từng pixel mỗi giây
+    // không cần độ chính xác cao, giúp HTML string ổn định → tránh innerHTML diff liên tục
+    const bx=Math.round((1-t)*(1-t)*14+2*(1-t)*t*173+t*t*332);
+    const by=Math.round((1-t)*(1-t)*65+2*(1-t)*t*(-45)+t*t*65);
     const lbw=88,lbx=t<0.5?bx-lbw-10:bx+14,lby=by-20;
     const isNight=nowM<RISE||nowM>SET;
     let tMoon=nowM>SET?(nowM-SET)/nightMin:(nowM+1440-SET)/nightMin;
     tMoon=Math.max(0,Math.min(1,tMoon));
-    const mx2=(1-tMoon)*(1-tMoon)*332+2*(1-tMoon)*tMoon*173+tMoon*tMoon*14;
-    const my2=(1-tMoon)*(1-tMoon)*65+2*(1-tMoon)*tMoon*145+tMoon*tMoon*65;
+    const mx2=Math.round((1-tMoon)*(1-tMoon)*332+2*(1-tMoon)*tMoon*173+tMoon*tMoon*14);
+    const my2=Math.round((1-tMoon)*(1-tMoon)*65+2*(1-tMoon)*tMoon*145+tMoon*tMoon*65);
 
     // Layout
     const _ns=parseFloat(cfg.node_scale??1.0);
@@ -2166,20 +2471,23 @@ class SolarWeatherCard extends HTMLElement {
     const INV_CX=INV_X+INV_W/2,INV_TOP=INV_Y,INV_BOT=INV_Y+INV_H;
     const HOM_CX=HOM_X+HOM_W/2,HOM_TOP=HOM_Y;
 
-    // ── Build flows — NO power labels ────────────────────────
+    // ── Build flows ──────────────────────────────────────────────
     let FL='',fpDefs='',fpIdx=0;
-    const addFlow=(path,color,gc,fl)=>{
+    const addFlow=(path,color,gc,fl,wHint=0)=>{
       const id=`fp-${fpIdx++}`;
       fpDefs+=`<path id="${id}" d="${path}"/>`;
-      if(minimalMode){
-        // Minimal: use particle flow but with reduced count (40% of normal)
-        const minFl={...fl, count:Math.max(2,Math.round(fl.count*0.4)), size:fl.size*0.85};
-        if(isWave)     FL+=this._wave(path,id,color,gc,minFl);
-        else           FL+=this._particles(path,id,color,gc,minFl);
-      } else if(isWave)     FL+=this._wave(path,id,color,gc,fl);
-      else if(isParticle) FL+=this._particles(path,id,color,gc,fl);
+      if(isWave)         FL+=this._wave(path,id,color,gc,fl,_animElapsed);
+      else if(isParticle)FL+=this._particles(path,id,color,gc,fl,_animElapsed);
+      else {
+        // line style — dùng wHint (W thực) nếu có, fallback ước từ fl
+        const w=wHint>0?wHint:(fl.count<=1?150:fl.count<=2?500:fl.count<=3?1100:fl.count<=4?2400:4500);
+        const mx=6000;
+        const c1=color.replace(/,\s*[\d.]+\s*\)/,',X)');
+        const c2=gc.replace(/,\s*[\d.]+\s*\)/,',X)');
+        FL+=this._lineFlow(path,w,mx,c1,c2,c2,_animElapsed);
+      }
     };
-    const addLine=(path,w,mx,c1,c2,c3)=>{ FL+=this._lineFlow(path,w,mx,c1,c2,c3); };
+    const addLine=(path,w,mx,c1,c2,c3)=>{ FL+=this._lineFlow(path,w,mx,c1,c2,c3,_animElapsed); };
 
     if(hasSolar){
       const sp=`M ${bx.toFixed(1)},${(by+7).toFixed(1)} C ${bx.toFixed(1)},${INV_TOP-70} ${INV_CX},${INV_TOP-150} ${INV_CX},${INV_TOP}`;
@@ -2187,7 +2495,9 @@ class SolarWeatherCard extends HTMLElement {
       else addLine(sp,solarW,8000,'rgba(255,250,200,X)','rgba(255,215,55,X)','rgba(255,235,120,X)');
     }
     if(isCharge){
-      const p=`M${INV_X+50},${INV_BOT} C ${INV_X+90},${INV_BOT-90} ${BAT_CX},${BAT_BOT+180} ${BAT_CX},${BAT_BOT}`;
+      // Charge: exit left edge of inverter → curve up-left → enter bottom of battery
+      const INV_LEFT_Y=INV_Y+INV_H*0.45;
+      const p=`M${INV_X},${INV_LEFT_Y} C ${INV_X-40},${INV_LEFT_Y} ${BAT_CX},${BAT_BOT+50} ${BAT_CX},${BAT_BOT}`;
       if(isParticle||isWave) addFlow(p,clrFlowBatt,'rgba(20,160,70,.55)',this._flowLevel(battFlW,'battery'));
       else addLine(p,battFlW,6000,'rgba(200,255,220,X)','rgba(80,220,120,X)','rgba(160,240,180,X)');
     }
@@ -2212,26 +2522,316 @@ class SolarWeatherCard extends HTMLElement {
       else addLine(p,gridDirectW,6000,'rgba(220,240,255,X)','rgba(90,175,255,X)','rgba(160,210,255,X)');
     }
 
-    // ── Icons ─────────────────────────────────────────────────
-    const battFillC=battSoc>50?'rgba(60,220,110,.95)':battSoc>20?'rgba(255,200,50,.95)':'rgba(255,70,70,.95)';
+    // ── Rooms data + flow + SVG ──────────────────────────────────
+    const cfgRooms=cfg.rooms||[];
+    const roomCount=Math.min(6,Math.max(2,parseInt(cfg.room_count??4)));
+    const defRoomIcons=['🛋️','🍳','🔥','💻','🛏️','🧺'];
+    const defRoomNames=lang==='vi'?['Phòng khách','Phòng bếp','Bếp từ','Office','Phòng ngủ','Giặt ủi']:['Living Room','Kitchen','Induction','Office','Bedroom','Laundry'];
+    const roomPalette=[
+      {main:'rgba(210,170,255,1)',glow:'rgba(170,120,255,.6)',border:'rgba(190,140,255,.78)',bg:'rgba(20,6,40,.88)',bar:'rgba(190,140,255,.4)'},
+      {main:'rgba(255,190,100,1)',glow:'rgba(230,130,30,.6)', border:'rgba(255,170,70,.78)', bg:'rgba(36,16,2,.88)', bar:'rgba(255,160,50,.4)'},
+      {main:'rgba(40,220,200,1)', glow:'rgba(20,160,145,.6)',border:'rgba(40,210,190,.78)',bg:'rgba(2,20,18,.88)',  bar:'rgba(40,200,180,.4)'},
+      {main:'rgba(60,185,255,1)', glow:'rgba(20,120,220,.6)',border:'rgba(50,170,255,.78)', bg:'rgba(2,10,28,.88)', bar:'rgba(50,160,255,.4)'},
+      {main:'rgba(255,120,160,1)',glow:'rgba(220,60,100,.6)', border:'rgba(255,100,140,.78)',bg:'rgba(30,4,14,.88)', bar:'rgba(255,90,130,.4)'},
+      {main:'rgba(140,230,80,1)', glow:'rgba(90,180,30,.6)',  border:'rgba(120,215,65,.78)', bg:'rgba(8,22,2,.88)',  bar:'rgba(110,200,55,.4)'},
+    ];
 
+    // Auto-scale room card size based on count
+    // ViewBox stays 346. For 5-6 rooms we scale the rooms+trunk group horizontally.
+    // _roomScale: how much wider the rooms section is rendered vs viewBox
+    const _roomScale = roomCount <= 4 ? 1.0 : roomCount === 5 ? 1.22 : 1.45;
+    // Work in "room space" (346 wide), then apply scale transform when rendering
+    const _padding = 6;
+    const _roomSpanW = 346 - _padding * 2; // 334
+    const _minGap = 5;
+    const RW = Math.floor((_roomSpanW - (roomCount - 1) * _minGap) / roomCount);
+    const RH = roomCount <= 4 ? 92 : roomCount === 5 ? 92 : 92;
+
+    // Center rooms in 346 room-space
+    const _actualGap = Math.floor((_roomSpanW - roomCount * RW) / Math.max(1, roomCount - 1));
+    const _totalRoomsW = roomCount * RW + (roomCount - 1) * _actualGap;
+    const _startX = Math.round((346 - _totalRoomsW) / 2);
+    const RXS = Array.from({length: roomCount}, (_, i) => _startX + i * (RW + _actualGap));
+
+    // For flows: rcx in screen space = scale transform applied around center (173)
+    // screen_x = 173 + (room_x - 173) * _roomScale
+    const _toScreen = (x) => 173 + (x - 173) * _roomScale;
+
+    const HOM_BOT=HOM_Y+HOM_H;
+    const TRUNK_Y=HOM_BOT+28;
+    const ROOM_Y=TRUNK_Y+22;
+
+    // ── Dynamic viewBox: expand left/right to fit all nodes regardless of user layout ──
+    // This makes the card auto-scale on mobile without clipping Battery/Grid nodes
+    const _VB_MARGIN = 8; // padding beyond the outermost node edge
+    const _leftEdge  = Math.min(BAT_X - _VB_MARGIN, 0);          // Battery left (can be negative)
+    const _rightEdge = Math.max(GRD_X + GRD_W + _VB_MARGIN, 346); // Grid right
+    const VB_X = _leftEdge;
+    const VB_W = _rightEdge - _leftEdge;
+    // Scale factor from viewBox coords to the standard 346-unit space (used for centring)
+    // SVG width:100% means the browser scales VB_W → container width automatically
+
+    // Read room power values
+    const cfgRoomOffsets=cfg.room_offsets||[];
+    const roomsData=[];
+    for(let ri=0;ri<roomCount;ri++){
+      const rmCfg=cfgRooms[ri]||{};
+      const eid=rmCfg.entity||null;
+      let pw=0;
+      if(eid&&this._hass){
+        const st=this._hass.states[eid];
+        if(st&&st.state!=='unavailable'&&st.state!=='unknown'){
+          const v=parseFloat(st.state);
+          if(!isNaN(v)){
+            const u=(st.attributes&&st.attributes.unit_of_measurement||'').trim();
+            pw=(u==='kW'||u==='kilowatt')?v*1000:v;
+          }
+        }
+      }
+      const rOff=cfgRoomOffsets[ri]||{};
+      const ox=rOff.x??0, oy=rOff.y??0;
+      // rx_room: X in "room space" (before scale transform) — used for scaled group render
+      // rx_scr:  X in true SVG screen space — used for free render and for flow path endpoints
+      // ox is a true-SVG offset (not scaled), so:
+      //   screen center = _toScreen(RXS[ri] + RW/2) + ox
+      const rx_room = RXS[ri] + ox; // X inside scale group (approximation; correct for flow via _toScreen below)
+      const scrCX   = _toScreen(RXS[ri] + RW/2) + ox; // true screen center X of room
+      // scrRW: visual width of a free room = RW scaled to screen space
+      // This keeps free rooms the same size as their in-group counterparts
+      const scrRW   = Math.round(RW * _roomScale);
+      const scrX    = scrCX - scrRW/2;                 // true screen left edge, using scaled width
+      roomsData.push({
+        label:rmCfg.name||defRoomNames[ri]||`Room ${ri+1}`,
+        icon: rmCfg.icon||defRoomIcons[ri]||'💡',
+        w:pw,
+        x:rx_room, y:ROOM_Y+oy,       // room-space coords (used inside scale group)
+        scrX, scrCX, scrRW,            // true screen coords (used outside scale group & for flows)
+        ox, oy,                        // raw offsets
+        defaultX: RXS[ri],             // original room-space X without offset
+        pal:roomPalette[ri%roomPalette.length],
+      });
+    }
+
+    // Branch flows (home → each room) — 90° elbow routing
+    // All coordinates are in true SVG screen space.
+    // _toScreen() converts room-space X → screen X for default rooms.
+    // For offset rooms, scrCX = _toScreen(defaultX + RW/2) + ox  (stored in rm.scrCX)
+
+    const HOM_L = HOM_X;
+    const HOM_R = HOM_X + HOM_W;
+    const HOM_MID_Y = HOM_Y + HOM_H / 2;
+
+    // Trunk: only spans rooms that are at default Y (no Y offset)
+    let trunkSVG = '';
+    const defaultYRooms = roomsData.filter(rm => rm.oy === 0);
+    if(defaultYRooms.length > 0){
+      const tX1 = _toScreen(defaultYRooms[0].defaultX + RW/2);
+      const tX2 = _toScreen(defaultYRooms[defaultYRooms.length-1].defaultX + RW/2);
+      trunkSVG =
+        `<line x1="${HOM_CX}" y1="${HOM_BOT}" x2="${HOM_CX}" y2="${TRUNK_Y}" stroke="rgba(255,155,65,.22)" stroke-width="1.2" stroke-linecap="round"/>` +
+        `<line x1="${tX1}" y1="${TRUNK_Y}" x2="${tX2}" y2="${TRUNK_Y}" stroke="rgba(255,155,65,.14)" stroke-width="1" stroke-dasharray="3,6"/>`;
+    }
+
+    for(let ri=0;ri<roomCount;ri++){
+      const rm = roomsData[ri];
+      const hasOff = rm.ox !== 0 || rm.oy !== 0;
+      // True screen center X of this room
+      const rCX = hasOff ? rm.scrCX : _toScreen(rm.defaultX + RW/2);
+      const rY  = rm.y;           // top of room card (screen Y, same in both systems)
+      const rBotY = rY + RH;
+      let bp;
+
+      if(!hasOff){
+        // ── DEFAULT: no offset — standard trunk routing (90° elbow) ──
+        // Down from Home bottom → horizontal trunk → 90° down to room top
+        bp = `M${HOM_CX},${HOM_BOT}` +
+             ` L${HOM_CX},${TRUNK_Y}` +
+             ` L${rCX},${TRUNK_Y}` +
+             ` L${rCX},${rY}`;
+
+      } else if(rm.oy < 0 && rY < HOM_Y){
+        // ── ELEVATED above Home: exit from left or right side of Home ──
+        const goLeft = rCX <= HOM_CX;
+        const exitX  = goLeft ? HOM_L : HOM_R;
+        // Mid horizontal Y: halfway between Home mid and room bottom
+        const elbowY = Math.min(HOM_MID_Y, rBotY + 20);
+        // 90° path: exit side → go horizontal to rCX → turn and go up to rBotY
+        bp = `M${exitX},${elbowY}` +
+             ` L${rCX},${elbowY}` +
+             ` L${rCX},${rBotY}`;
+
+      } else if(rm.oy < 0 && rY < HOM_BOT){
+        // ── BESIDE Home (overlapping vertically) ──
+        // Exit from bottom, go straight down then horizontal
+        const goLeft = rCX < HOM_CX;
+        const exitX  = goLeft ? HOM_L : HOM_R;
+        const elbowY = rBotY + Math.max(10, (HOM_BOT - rBotY) / 2);
+        bp = `M${exitX},${HOM_MID_Y}` +
+             ` L${rCX},${HOM_MID_Y}` +
+             ` L${rCX},${rBotY}`;
+
+      } else {
+        // ── BELOW Home but with X offset only — go down via trunk at new X ──
+        bp = `M${HOM_CX},${HOM_BOT}` +
+             ` L${HOM_CX},${TRUNK_Y}` +
+             ` L${rCX},${TRUNK_Y}` +
+             ` L${rCX},${rY}`;
+      }
+
+      if(rm.w > 5){
+        addFlow(bp, rm.pal.main, rm.pal.glow, this._flowLevel(rm.w, 'room'), rm.w);
+      } else {
+        FL += `<path d="${bp}" fill="none" stroke="${rm.pal.main}" stroke-width="0.6" stroke-dasharray="3,10" opacity="0.12" stroke-linecap="round"/>`;
+      }
+    }
+
+    // MDI-style SVG paths for room icons (24x24 viewBox)
+    const roomMDI=[
+      // sofa / living room
+      `<path d="M2,13 Q2,11 4,11 L4,9 Q4,7 6,7 L18,7 Q20,7 20,9 L20,11 Q22,11 22,13 L22,16 L20,16 L20,17 L18,17 L18,16 L6,16 L6,17 L4,17 L4,16 L2,16 Z" fill="rgba(210,170,255,.85)" stroke="rgba(210,170,255,.4)" stroke-width="0.5"/>
+       <rect x="4" y="12" width="16" height="4" rx="1" fill="rgba(180,130,255,.6)"/>`,
+      // pot / kitchen
+      `<path d="M7,7 L17,7 L16,15 Q16,17 12,17 Q8,17 8,15 Z" fill="rgba(255,190,100,.85)" stroke="rgba(255,190,100,.4)" stroke-width="0.5"/>
+       <rect x="6" y="6" width="12" height="2" rx="1" fill="rgba(255,190,100,.7)"/>
+       <line x1="12" y1="4" x2="12" y2="6" stroke="rgba(255,190,100,.9)" stroke-width="1.5" stroke-linecap="round"/>
+       <line x1="9" y1="4.5" x2="10" y2="6" stroke="rgba(255,190,100,.7)" stroke-width="1.2" stroke-linecap="round"/>
+       <line x1="15" y1="4.5" x2="14" y2="6" stroke="rgba(255,190,100,.7)" stroke-width="1.2" stroke-linecap="round"/>`,
+      // stove / induction
+      `<rect x="4" y="6" width="16" height="12" rx="2" fill="rgba(40,220,200,.15)" stroke="rgba(40,220,200,.7)" stroke-width="1"/>
+       <circle cx="9" cy="11" r="3" fill="none" stroke="rgba(40,220,200,.8)" stroke-width="1" stroke-dasharray="2 1.5"/>
+       <circle cx="9" cy="11" r="1.2" fill="rgba(40,220,200,.85)"/>
+       <circle cx="15" cy="11" r="3" fill="none" stroke="rgba(40,220,200,.5)" stroke-width="1" stroke-dasharray="2 1.5"/>
+       <circle cx="15" cy="11" r="1.2" fill="rgba(40,220,200,.4)"/>
+       <rect x="7" y="15.5" width="5" height="1.5" rx="0.75" fill="rgba(40,220,200,.5)" stroke="rgba(40,220,200,.7)" stroke-width="0.5"/>`,
+      // monitor / office
+      `<rect x="4" y="5" width="16" height="11" rx="2" fill="rgba(60,185,255,.12)" stroke="rgba(60,185,255,.75)" stroke-width="1"/>
+       <rect x="5.5" y="6.5" width="13" height="8" rx="1" fill="rgba(5,20,40,.9)"/>
+       <line x1="8" y1="8" x2="14" y2="8" stroke="rgba(60,185,255,.7)" stroke-width="1" stroke-linecap="round"/>
+       <line x1="8" y1="10" x2="16" y2="10" stroke="rgba(60,185,255,.5)" stroke-width="1" stroke-linecap="round"/>
+       <line x1="8" y1="12" x2="12" y2="12" stroke="rgba(60,185,255,.6)" stroke-width="1" stroke-linecap="round"/>
+       <line x1="10" y1="16" x2="14" y2="16" stroke="rgba(60,185,255,.5)" stroke-width="1" stroke-linecap="round"/>
+       <rect x="10.5" y="16" width="3" height="2.5" rx="0.5" fill="rgba(60,185,255,.2)" stroke="rgba(60,185,255,.5)" stroke-width="0.6"/>`,
+      // bed / bedroom
+      `<rect x="3" y="10" width="18" height="9" rx="2" fill="rgba(255,120,160,.12)" stroke="rgba(255,120,160,.75)" stroke-width="1"/>
+       <rect x="3" y="8" width="5" height="5" rx="2" fill="rgba(255,120,160,.3)" stroke="rgba(255,120,160,.6)" stroke-width="0.8"/>
+       <rect x="3" y="16" width="3" height="3" rx="1" fill="rgba(255,120,160,.5)"/>
+       <rect x="18" y="16" width="3" height="3" rx="1" fill="rgba(255,120,160,.5)"/>
+       <line x1="8" y1="10" x2="21" y2="10" stroke="rgba(255,120,160,.4)" stroke-width="1"/>`,
+      // washing / laundry
+      `<rect x="4" y="4" width="16" height="16" rx="3" fill="rgba(140,230,80,.12)" stroke="rgba(140,230,80,.75)" stroke-width="1"/>
+       <circle cx="12" cy="13" r="4.5" fill="none" stroke="rgba(140,230,80,.8)" stroke-width="1"/>
+       <circle cx="12" cy="13" r="2.5" fill="none" stroke="rgba(140,230,80,.5)" stroke-width="1" stroke-dasharray="3 2"/>
+       <circle cx="7" cy="7" r="1" fill="rgba(140,230,80,.9)"/>
+       <rect x="9" y="6" width="6" height="1.5" rx="0.75" fill="rgba(140,230,80,.4)"/>`,
+    ];
+
+    // Room node SVG cards
+    // Rooms with Y offset != 0 or X offset != 0 are rendered OUTSIDE the scale group
+    // so their offsets are in true SVG coordinates (no scale distortion).
+    let roomSVG='';       // goes inside the scale group (default-position rooms)
+    let roomSVGFree='';   // goes outside the scale group (offset rooms)
+    // _invScale: compensates the horizontal scale applied to the rooms group
+    // so fonts/icons render at correct aspect ratio
+    const _invScale = 1 / _roomScale;
+    const _nameFontSize = 11.5;
+    const _valFontSize  = 16;
+    const _icoScale     = 1.15;
+    for(let ri=0;ri<roomCount;ri++){
+      const rm=roomsData[ri],pal=rm.pal;
+      const hasOff = rm.ox !== 0 || rm.oy !== 0;
+
+      // For rooms inside the scale group (no offset): use room-space coords + RW
+      // For rooms outside scale group (has offset): use screen-space coords + scrRW
+      // scrRW = RW * _roomScale so free rooms appear the same visual size as scaled-group rooms
+      const rx  = hasOff ? rm.scrX  : rm.x;
+      const ry  = rm.y;  // Y is same in both systems (Y is not scaled)
+      const rcx = hasOff ? rm.scrCX : (rm.x + RW/2);
+      const FW  = hasOff ? rm.scrRW : RW;   // effective width for this room's render
+      const FH  = RH; // height stays constant regardless of offset — Y axis is not scaled
+
+      const active=rm.w>5;
+      const wLabel=rm.w>=1000?(rm.w/1000).toFixed(2)+' kW':Math.round(rm.w)+' W';
+      const barW=Math.min(FW-16,Math.round((FW-16)*Math.min(rm.w,3000)/3000));
+      // Icon: if custom emoji set use text, else use MDI SVG
+      const hasEmoji=rm.icon&&rm.icon.trim()&&rm.icon.trim()!==defRoomIcons[ri];
+      const _icoY = ry + 28;   // Y positions stay same as default — height is not scaled
+      const _icoFS = hasOff ? Math.round(20 * Math.min(_roomScale, 1.3)) : 20; // font slightly bigger for free rooms
+      const _labelY = ry + 51;
+      const _valY   = ry + 69;
+      // Inside scale group: apply _invScale to cancel horizontal stretch on text/icons
+      // Outside scale group: no correction needed (scale = 1), but scale icons/text up with _roomScale
+      const _scaleCorr = hasOff ? '1' : _invScale.toFixed(4);
+      const _icoScaleFree = hasOff ? Math.min(_roomScale, 1.3) * _icoScale : _icoScale;
+      const _cs  = `translate(${rcx},0) scale(${_scaleCorr},1) translate(${-rcx},0)`;
+      // For free rooms: translate icon to correct position then scale from its own origin
+      const _csi = hasOff
+        ? `translate(${rcx - 12*_icoScaleFree},${ry+5}) scale(${_icoScaleFree})`
+        : `translate(${rcx-12*_icoScale},0) scale(${_scaleCorr},1)`;
+
+      const iconSVG=hasEmoji
+        ?`<g transform="${_cs}"><text x="${rcx}" y="${_icoY}" text-anchor="middle" font-size="${_icoFS}" font-family="Apple Color Emoji,Segoe UI Emoji,sans-serif">${rm.icon}</text></g>`
+        : hasOff
+          ?`<g transform="${_csi}">${roomMDI[ri%roomMDI.length]}</g>`
+          :`<g transform="${_csi}"><g transform="translate(0,${ry+5}) scale(${_icoScale})">${roomMDI[ri%roomMDI.length]}</g></g>`;
+
+      let roomChunk = `<g opacity="${active?'1':'0.38'}">`;
+      if(active) roomChunk+=`<rect x="${rx-2}" y="${ry-2}" width="${FW+4}" height="${FH+4}" rx="15" fill="none" stroke="${pal.glow}" stroke-width="4" filter="url(#pBlur)" opacity=".3"/>`;
+      roomChunk+=`<rect x="${rx}" y="${ry}" width="${FW}" height="${FH}" rx="13" fill="${pal.bg}" stroke="${pal.border}" stroke-width="${active?'1.5':'0.6'}" stroke-opacity="${active?'0.82':'0.20'}"/>`;
+      roomChunk+=`<rect x="${rx+2}" y="${ry+2}" width="${FW-4}" height="10" rx="10" fill="rgba(255,255,255,0.04)"/>`;
+      roomChunk+=iconSVG;
+      const _nameFontSizeFree = hasOff ? (_nameFontSize * Math.min(_roomScale, 1.3)).toFixed(1) : _nameFontSize;
+      const _valFontSizeFree  = hasOff ? (_valFontSize  * Math.min(_roomScale, 1.3)).toFixed(1) : _valFontSize;
+      roomChunk+=`<g transform="${_cs}"><text x="${rcx}" y="${_labelY}" text-anchor="middle" font-size="${_nameFontSizeFree}" font-weight="600" font-family="Inter,-apple-system,sans-serif" fill="rgba(200,230,240,.92)">${rm.label}</text></g>`;
+      roomChunk+=`<g transform="${_cs}"><text x="${rcx}" y="${_valY}" text-anchor="middle" font-size="${_valFontSizeFree}" font-weight="800" font-family="Inter,-apple-system,sans-serif" fill="${pal.main}" filter="url(#tf)">${wLabel}</text></g>`;
+      // power bar track
+      roomChunk+=`<rect x="${rx+8}" y="${ry+FH-9}" width="${FW-16}" height="4" rx="2" fill="rgba(255,255,255,.08)"/>`;
+      if(barW>0){
+        roomChunk+=`<rect x="${rx+8}" y="${ry+FH-9}" width="${barW}" height="4" rx="2" fill="${pal.main}" opacity=".85"/>`;
+        roomChunk+=`<rect x="${rx+8}" y="${ry+FH-9}" width="${barW}" height="4" rx="2" fill="${pal.bar}" filter="url(#pBlur)"/>`;
+      }
+      roomChunk+=`</g>`;
+
+      if(hasOff){ roomSVGFree += roomChunk; } else { roomSVG += roomChunk; }
+    }
+
+    // ── Icons ─────────────────────────────────────────────────
     const batIcoFn=(cx2,iy,aw,ah)=>{
-      const bw=58,bh=26,bx0=cx2-bw/2,by0=iy+(ah-bh)/2-2,fw=Math.max(2,Math.round((bw-8)*battSoc/100));
+      const bw=aw*0.82,bh=ah*0.52,bxb=cx2-bw/2,byb=iy+(ah-bh)/2-4;
+      const fw=Math.max(2,(bw-6)*battSoc/100),br=5;
+      let fillC,borderC,glowC;
+      if(bPct>50){fillC='rgba(40,220,130,.9)';borderC='rgba(40,230,160,.92)';glowC='rgba(40,220,130,.55)';}
+      else if(bPct>20){fillC='rgba(255,200,50,.95)';borderC='rgba(255,195,50,.92)';glowC='rgba(255,200,50,.45)';}
+      else{fillC='rgba(240,70,70,.95)';borderC='rgba(240,70,70,.95)';glowC='rgba(240,60,60,.5)';}
       const floatStyle=minimalMode?'':'animation:nodeFloat 3s ease-in-out infinite;';
-      let s=`<g style="${floatStyle}transform-origin:${cx2}px ${by0+bh}px">`;
-      s+=`<ellipse cx="${cx2}" cy="${by0+bh+6}" rx="25" ry="4" fill="rgba(40,230,120,.22)" filter="url(#pBlur)"/>`;
-      s+=`<rect x="${bx0-1}" y="${by0-1}" width="${bw+9}" height="${bh+2}" rx="7" fill="none" stroke="rgba(40,230,160,.35)" stroke-width="7" filter="url(#pBlur)"/>`;
-      s+=`<rect x="${bx0}" y="${by0}" width="${bw}" height="${bh}" rx="6" fill="rgba(0,22,14,.96)" stroke="rgba(40,230,160,.92)" stroke-width="1.5"/>`;
-      s+=`<rect x="${bx0+bw}" y="${by0+bh/2-5}" width="7" height="10" rx="3" fill="rgba(30,180,110,.4)" stroke="rgba(40,230,160,.8)" stroke-width="1.1"/>`;
-      s+=`<rect x="${bx0+bw+1.5}" y="${by0+bh/2-3}" width="3.5" height="6" rx="1.5" fill="rgba(40,230,140,.6)"/>`;
-      s+=`<rect x="${bx0+4}" y="${by0+4}" width="${fw}" height="${bh-8}" rx="3" fill="${battFillC}"/>`;
-      s+=`<rect x="${bx0+4}" y="${by0+4}" width="${fw}" height="5" rx="3" fill="rgba(255,255,255,.2)"/>`;
-      s+=`<rect x="${bx0+fw+4}" y="${by0+4}" width="${bw-fw-8}" height="${bh-8}" rx="3" fill="rgba(40,230,120,.06)"/>`;
-      s+=`<line x1="${bx0+bw/3}" y1="${by0+3}" x2="${bx0+bw/3}" y2="${by0+bh-3}" stroke="rgba(0,18,10,.92)" stroke-width="1.6"/>`;
-      s+=`<line x1="${bx0+bw*2/3}" y1="${by0+3}" x2="${bx0+bw*2/3}" y2="${by0+bh-3}" stroke="rgba(0,18,10,.92)" stroke-width="1.6"/>`;
-      s+=`<text x="${cx2}" y="${by0+bh/2+4.5}" text-anchor="middle" fill="rgba(255,255,255,.97)" font-size="14" font-weight="800" font-family="-apple-system,sans-serif">${bPct}%</text>`;
-      if(isCharge){ const bCX=Math.min(bx0+fw*0.6+4,bx0+bw-14),bt=by0+4,bb=by0+bh-4,bm=(bt+bb)/2; s+=`<polygon points="${bCX+3},${bt} ${bCX},${bm} ${bCX+2.5},${bm} ${bCX-1},${bb} ${bCX+5},${bm} ${bCX+2.5},${bm}" fill="rgba(255,255,220,.95)"/>`; }
-      s+='</g>'; return s;
+      let s=`<g style="${floatStyle}transform-origin:${cx2}px ${byb+bh}px">`;
+      s+=`<rect x="${bxb}" y="${byb}" width="${bw}" height="${bh}" rx="${br}" fill="rgba(0,12,8,.97)" stroke="${borderC}" stroke-width="1.2"/>`;
+      s+=`<rect x="${bxb+1}" y="${byb+1}" width="${bw-2}" height="${bh*0.35}" rx="${br}" fill="rgba(255,255,255,.04)"/>`;
+      s+=`<clipPath id="batClip${(cx2|0)}"><rect x="${bxb+3}" y="${byb+3}" width="${bw-6}" height="${bh-6}" rx="${br-1}"/></clipPath>`;
+      s+=`<rect x="${bxb+3}" y="${byb+3}" width="${fw}" height="${bh-6}" rx="${br-1}" fill="${fillC}" clip-path="url(#batClip${(cx2|0)})"/>`;
+      s+=`<rect x="${bxb+3}" y="${byb+3}" width="${fw}" height="${bh*0.3}" rx="${br-1}" fill="rgba(255,255,255,.14)" clip-path="url(#batClip${(cx2|0)})"/>`;
+      const nCells=4,cellW=(bw-6)/nCells;
+      for(let ci=1;ci<nCells;ci++) s+=`<line x1="${bxb+3+ci*cellW}" y1="${byb+3}" x2="${bxb+3+ci*cellW}" y2="${byb+bh-3}" stroke="rgba(0,12,6,.55)" stroke-width="1.2"/>`;
+      const termX=bxb+bw,termH=bh*0.45,termY=byb+(bh-termH)/2;
+      s+=`<rect x="${termX}" y="${termY}" width="5" height="${termH}" rx="2" fill="rgba(40,180,110,.35)" stroke="${borderC}" stroke-width="1"/>`;
+      s+=`<rect x="${termX+1.5}" y="${termY+2}" width="2.5" height="${termH-4}" rx="1" fill="${fillC}" opacity="0.65"/>`;
+      s+=`<text x="${cx2}" y="${byb+bh/2+4.5}" text-anchor="middle" fill="rgba(255,255,255,.95)" font-size="15" font-weight="800" font-family="Inter,-apple-system,sans-serif" filter="url(#tf)">${bPct}%</text>`;
+      const iconX=bxb+bw-14,iconY2=byb+3;
+      if(isCharge){
+        s+=`<g><animate attributeName="opacity" values="0;0;1;0.8;0;0;1;0.7;0" dur="1.1s" repeatCount="indefinite"/>`;
+        s+=`<polygon points="${iconX+4},${iconY2} ${iconX},${iconY2+7} ${iconX+2.5},${iconY2+7} ${iconX+1},${iconY2+13} ${iconX+7},${iconY2+5.5} ${iconX+4.5},${iconY2+5.5}" fill="rgba(255,240,80,.97)"/></g>`;
+      } else if(isDisch){
+        const ay0=byb+bh*0.15,ayH=bh*0.22;
+        for(let ai=0;ai<3;ai++){
+          const aDelay=(ai*0.33).toFixed(2),ay=ay0+ai*ayH;
+          s+=`<polyline points="${iconX},${ay} ${iconX+3.5},${ay+5} ${iconX+7},${ay}" fill="none" stroke="rgba(255,210,60,.95)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><animate attributeName="opacity" values="0;1;1;0" dur="1.0s" begin="-${aDelay}s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="translate" values="0,-4;0,3;0,8" dur="1.0s" begin="-${aDelay}s" repeatCount="indefinite" additive="sum"/></polyline>`;
+        }
+      } else if(bPct<=20){
+        s+=`<text x="${iconX+3.5}" y="${iconY2+11}" text-anchor="middle" fill="rgba(255,80,80,.97)" font-size="12" font-weight="900" font-family="Inter,-apple-system,sans-serif">!<animate attributeName="opacity" values="1;0.15;1" dur="0.7s" repeatCount="indefinite"/></text>`;
+      } else {
+        s+=`<polyline points="${iconX},${iconY2+6} ${iconX+2.5},${iconY2+9} ${iconX+7},${iconY2+3}" fill="none" stroke="rgba(40,230,160,.95)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><animate attributeName="opacity" values="0.3;0.9;0.3" dur="2.5s" repeatCount="indefinite"/></polyline>`;
+      }
+      s+=`<rect x="${bxb}" y="${byb}" width="${bw}" height="${bh}" rx="${br}" fill="none" stroke="${borderC}" stroke-width="1.2" style="pointer-events:none"/>`;
+      s+=`</g>`; return s;
     };
 
     const invIcoFn=(cx2,iy,aw,ah)=>{
@@ -2356,6 +2956,20 @@ class SolarWeatherCard extends HTMLElement {
       s+=`<circle cx="${ax}" cy="${ayt}" r="${1.5*sc}" fill="rgba(255,178,42,.92)" filter="url(#pBlurSm)"/>`;
       s+=`<path d="M${ax-3.5*sc},${ayt+5*sc} Q${ax},${ayt+sc} ${ax+3.5*sc},${ayt+5*sc}" fill="none" stroke="rgba(255,178,42,.35)" stroke-width="${0.85*sc}" stroke-linecap="round"/>`;
       s+=`<ellipse cx="${cx2}" cy="${oy+46*sc}" rx="${28*sc}" ry="${15*sc}" fill="rgba(255,185,48,.05)" filter="url(#pBlur)"/>`;
+      // ── Wind turbine (bên phải ngôi nhà) ──
+      const tbX=ox+82*sc,tbBot=oy+68*sc,tbH=ah*0.78,tbTop=tbBot-tbH,tbR=tbH*0.52,tbCW=3.2;
+      s+=`<polygon points="${tbX-tbCW},${tbBot} ${tbX+tbCW},${tbBot} ${tbX+tbCW*0.35},${tbTop} ${tbX-tbCW*0.35},${tbTop}" fill="rgba(160,200,240,.15)" stroke="rgba(140,195,255,.62)" stroke-width="0.8" stroke-linejoin="round"/>`;
+      const nW=tbCW*3.2,nH=tbCW*1.6;
+      s+=`<rect x="${tbX-nW/2}" y="${tbTop-nH/2}" width="${nW}" height="${nH}" rx="1.2" fill="rgba(100,160,220,.48)" stroke="rgba(160,210,255,.78)" stroke-width="0.8"/>`;
+      s+=`<circle cx="${tbX}" cy="${tbTop}" r="${tbCW*0.65}" fill="rgba(200,230,255,.88)" stroke="rgba(255,255,255,.45)" stroke-width="0.6"/>`;
+      const bLen=tbR,bWide=bLen*0.13;
+      const bladeD=`M 0,0 C ${bWide*0.6},${-bLen*0.08} ${bWide*0.35},${-bLen*0.55} 0,${-bLen} C ${-bWide*0.35},${-bLen*0.55} ${-bWide*0.6},${-bLen*0.08} 0,0 Z`;
+      s+=`<g transform="translate(${tbX},${tbTop})">`;
+      s+=`<path d="${bladeD}" fill="rgba(180,220,255,.70)" stroke="rgba(200,235,255,.55)" stroke-width="0.5"><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="2.2s" repeatCount="indefinite" calcMode="linear"/></path>`;
+      s+=`<path d="${bladeD}" fill="rgba(160,210,255,.60)" stroke="rgba(190,230,255,.45)" stroke-width="0.5" transform="rotate(120)"><animateTransform attributeName="transform" type="rotate" from="120" to="480" dur="2.2s" repeatCount="indefinite" calcMode="linear"/></path>`;
+      s+=`<path d="${bladeD}" fill="rgba(140,200,255,.50)" stroke="rgba(180,225,255,.40)" stroke-width="0.5" transform="rotate(240)"><animateTransform attributeName="transform" type="rotate" from="240" to="600" dur="2.2s" repeatCount="indefinite" calcMode="linear"/></path>`;
+      s+=`</g>`;
+      s+=`<circle cx="${tbX}" cy="${tbTop}" r="${tbCW*0.65}" fill="rgba(210,235,255,.92)" stroke="rgba(255,255,255,.55)" stroke-width="0.6"/>`;
       s+='</g>'; return s;
     };
 
@@ -2373,9 +2987,13 @@ class SolarWeatherCard extends HTMLElement {
       const pL=26, pB=22, pT=32, pR=6;
       const plotW=cW-pL-pR, plotH=cH-pT-pB;
       const maxW=solarDesignWp;
-      const nowHour=new Date().getHours()+new Date().getMinutes()/60;
-      const hToX=h=>cX+pL+(h-6)/12*plotW;
-      const wToY=w=>cY+pT+plotH-Math.min(w,maxW)/maxW*plotH;
+      // Round nowHour về số nguyên (giờ) — chart chỉ cần độ chính xác theo giờ,
+      // tránh floating-point thay đổi mỗi giây gây innerHTML diff liên tục
+      const _nowD=new Date();
+      const nowHour=_nowD.getHours()+Math.round(_nowD.getMinutes()/60*10)/10;
+      // Round tọa độ về 1 decimal — đủ chính xác cho chart, tránh micro-change từ floating-point
+      const hToX=h=>Math.round((cX+pL+(h-6)/12*plotW)*10)/10;
+      const wToY=w=>Math.round((cY+pT+plotH-Math.min(w,maxW)/maxW*plotH)*10)/10;
 
       // Solcast detailed forecast curve
       let curve=[];
@@ -2394,8 +3012,7 @@ class SolarWeatherCard extends HTMLElement {
       // Forecast peak near now
       let peakW=0;
       if(curve.length>0){
-        const nh=new Date().getHours()+new Date().getMinutes()/60;
-        const cl=curve.reduce((a,b)=>Math.abs(b.h-nh)<Math.abs(a.h-nh)?b:a);
+        const cl=curve.reduce((a,b)=>Math.abs(b.h-nowHour)<Math.abs(a.h-nowHour)?b:a);
         peakW=Math.round(cl.w);
       }
 
@@ -2504,7 +3121,7 @@ class SolarWeatherCard extends HTMLElement {
       const bcActual   = parseFloat(daily)||0;
       const bcFcToday  = parseFloat(this._gf('solcast_today_entity',0))||0;
       const bcFcTomorrow = parseFloat(this._gf('solcast_tomorrow_entity',0))||0;
-      let bcMax = Math.max(bcActual, bcFcToday, bcFcTomorrow, 1) * 1.15;
+      let bcMax = Math.round(Math.max(bcActual, bcFcToday, bcFcTomorrow, 1) * 1.15 * 10) / 10;
       // % vs forecast today (today = 100%)
       const bcPctActual   = bcFcToday>0?Math.round(bcActual/bcFcToday*100):null;
       const bcPctFcToday  = 100;
@@ -2594,9 +3211,9 @@ class SolarWeatherCard extends HTMLElement {
       }
     }
 
-    // Moon
-    const mcx=isNight?mx2:((1-t)*(1-t)*332+2*(1-t)*t*173+t*t*14);
-    const mcy=isNight?my2:((1-t)*(1-t)*115+2*(1-t)*t*95+t*t*115);
+    // Moon — round tọa độ về số nguyên (tương tự bx/by) để HTML ổn định
+    const mcx=isNight?mx2:Math.round((1-t)*(1-t)*332+2*(1-t)*t*173+t*t*14);
+    const mcy=isNight?my2:Math.round((1-t)*(1-t)*115+2*(1-t)*t*95+t*t*115);
     const moonSVG=`<g filter="url(#mf)" opacity="${isNight?'1':'.35'}"><circle cx="${mcx}" cy="${mcy}" r="${isNight?10:7}" fill="${isNight?'rgba(180,205,255,.3)':'rgba(180,205,255,.10)'}"/><circle cx="${mcx}" cy="${mcy}" r="${isNight?6:3.5}" fill="${isNight?'rgba(220,235,255,.98)':'rgba(200,218,255,.85)'}" stroke="${isNight?'rgba(240,248,255,.9)':'rgba(225,235,255,.65)'}" stroke-width="1.2"/></g>`;
 
     // Battery bar
@@ -2605,24 +3222,62 @@ class SolarWeatherCard extends HTMLElement {
     else if(bPct<=20){bColor='linear-gradient(90deg,#dc2626,#ea580c,#f59e0b)';bGlow='rgba(245,158,11,.55)';}
     else{bColor='linear-gradient(90deg,#16a34a,#4ade80,#86efac)';bGlow='rgba(74,222,128,.5)';}
 
-    const tickMsg=T.ticker(wState,daily,dailyuse,savFmtUse,currency,bPct,isCharge,isDisch,battSoc);
-    const ticker2=tickMsg+'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'+tickMsg;
-
-    this.shadowRoot.innerHTML=`
-<style>:host{display:block}*{box-sizing:border-box;margin:0;padding:0}
-@keyframes scrollTicker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+    // ── Two-layer render: anim layer stays alive, data layer updates freely ──
+    // #swc-anim: flow SVG particles/waves — chỉ rebuild khi layout/màu/style thay đổi
+    // #swc-data: weather, nodes, stats  — update mỗi khi sensor thay đổi
+    const _cssText=`:host{display:block}*{box-sizing:border-box;margin:0;padding:0}
 @keyframes nodeFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
-${minimalMode?`
-/* Minimal mode: kill all animations */
-*,*::before,*::after{animation-duration:0.001s!important;animation-iteration-count:1!important;transition-duration:0s!important;}
-`:``}
-</style>
-<div style="font-family:Inter,-apple-system,sans-serif;color:${clrTextPrim};
+${_WEATHER_ICON_CSS}
+${minimalMode?`*,*::before,*::after{animation-duration:0.001s!important;animation-iteration-count:1!important;transition-duration:0s!important;}`:''}`;
+
+    const _curAnimSig=this._buildAnimSig();
+    const _needAnimRebuild=_curAnimSig!==this._animSig||!this._shellReady;
+
+    if(_needAnimRebuild){
+      this._animSig=_curAnimSig;
+      // Shell gồm 3 vùng cố định:
+      //   swc-top       → header weather/clock  (update bằng innerHTML)
+      //   swc-svg-section → sun-bar + svg-wrap  (wrap CỐ ĐỊNH — không bao giờ bị xóa)
+      //     swc-svg-data  → <svg> chứa nodes/sun/rooms (update innerHTML riêng)
+      //     swc-flow-svg  → flow particles (inject 1 lần, reuse, animation không bị reset)
+      //   swc-bot       → battery bar + stats   (update bằng innerHTML)
+      this.shadowRoot.innerHTML=`<style id="main-css">${_cssText}</style><div id="swc-card" style="font-family:Inter,-apple-system,sans-serif;color:${clrTextPrim};
   background:${bg};backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
   border:1px solid rgba(255,255,255,.18);border-radius:24px;
   box-shadow:0 8px 32px rgba(0,0,0,.25),inset 0 1px 0 rgba(255,255,255,.20),inset 0 -1px 0 rgba(255,255,255,.05);
-  overflow:hidden;">
+  overflow:hidden;position:relative;">
+  <div id="swc-top"></div>
+  <div id="swc-svg-section">
+    <div id="swc-sun-bar"></div>
+    <div class="swc-svg-wrap" style="position:relative;width:100%;height:${ROOM_Y+RH+16}px;contain:layout style;">
+      <svg id="swc-svg-data" viewBox="${VB_X} 0 ${VB_W} ${ROOM_Y+RH+16}" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;will-change:transform;z-index:1;"></svg>
+    </div>
+  </div>
+  <div id="swc-bot"></div>
+</div>`;
+      this._shellReady=true;
+    } else {
+      // Chỉ update card background/color (bg thay đổi theo thời gian)
+      const card=this.shadowRoot.getElementById('swc-card');
+      if(card){ card.style.background=bg; card.style.color=clrTextPrim; }
+      // Cập nhật kích thước wrap nếu layout thay đổi (room count, node Y)
+      const wrap=this.shadowRoot.querySelector('.swc-svg-wrap');
+      if(wrap) wrap.style.height=`${ROOM_Y+RH+16}px`;
+      const svgData=this.shadowRoot.getElementById('swc-svg-data');
+      if(svgData) svgData.setAttribute('viewBox',`${VB_X} 0 ${VB_W} ${ROOM_Y+RH+16}`);
+    }
 
+    // ── Data render — chia thành 4 zone độc lập ─────────────────
+    // Zone 1: swc-top  — weather header, clock, hourly strip, tomorrow
+    // Zone 2: swc-sun-bar — sun arc text labels (trên wrap)
+    // Zone 3: swc-svg-data — SVG data nằm trong wrap CỐ ĐỊNH (không detach flow SVG)
+    // Zone 4: swc-bot  — battery bar + stats circles
+    //
+    // Mỗi zone chỉ update innerHTML khi nội dung thực sự thay đổi (string diff)
+    // → flow SVG (_animNode) luôn sống trong wrap → animation không bao giờ bị reset
+
+    // ── Zone 1: TOP ───────────────────────────────────────────
+    const _newTopHTML=`
   ${showInfo?`<div style="padding:18px 16px 14px;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);">
     <div style="display:grid;grid-template-columns:80px 1fr 40px;align-items:center;margin-bottom:12px;">
       <div>${wState?condHTML:'<div style="width:70px;height:70px;display:flex;align-items:center;justify-content:center;font-size:28px;opacity:.25;">🌤️</div>'}</div>
@@ -2683,8 +3338,10 @@ ${minimalMode?`
       <div></div>
     </div>
   </div>`}
+`; // end _newTopHTML
 
-  <div style="padding:8px 0 10px;border-bottom:1px solid rgba(255,255,255,.10);">
+    // ── Zone 2: SUN BAR ───────────────────────────────────────
+    const _newSunBarHTML=`<div style="padding:8px 0 10px;border-bottom:1px solid rgba(255,255,255,.10);">
     <div style="display:flex;justify-content:space-between;font-size:10.5px;color:rgba(255,255,255,.55);margin-bottom:5px;padding:0 14px;">
       <span>🌅 <strong style="color:#fff;">${riseStr}</strong> ${T.sunrise}</span>
       <span><strong style="color:#fff;">${pct}%</strong> ${T.dayPct}</span>
@@ -2694,8 +3351,11 @@ ${minimalMode?`
       <div style="flex:1;padding:5px 0;border-radius:20px;text-align:center;font-size:10.5px;font-weight:600;background:rgba(255,200,70,.15);border:1px solid rgba(255,200,70,.35);color:rgba(255,225,110,.95);">☀️ ${T.daytime}: ${fmtDur(dayMin)}</div>
       <div style="flex:1;padding:5px 0;border-radius:20px;text-align:center;font-size:10.5px;font-weight:600;background:rgba(140,175,255,.12);border:1px solid rgba(140,175,255,.3);color:rgba(185,210,255,.9);">🌙 ${T.nighttime}: ${fmtDur(nightMin)}</div>
     </div>
-    <div style="position:relative;width:100%;height:500px;contain:layout style;">
-      <svg viewBox="0 0 346 530" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;overflow:visible;will-change:transform;">
+  </div>`; // end _newSunBarHTML
+
+    // ── Zone 3: SVG DATA (trong wrap cố định) ─────────────────
+    // Chỉ update innerHTML của <svg id="swc-svg-data"> — không đụng đến wrap hay flow SVG
+    const _newSvgDataHTML=`
         <defs>
           <filter id="pBlur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
           <filter id="pBlurSm" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.5"/></filter>
@@ -2706,7 +3366,6 @@ ${minimalMode?`
           <linearGradient id="ng" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="rgba(140,170,255,0)"/><stop offset="30%" stop-color="rgba(155,185,255,.35)"/><stop offset="50%" stop-color="rgba(200,215,255,.7)"/><stop offset="70%" stop-color="rgba(155,185,255,.35)"/><stop offset="100%" stop-color="rgba(140,170,255,0)"/></linearGradient>
           <linearGradient id="skyG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="rgba(55,125,225,.10)"/><stop offset="100%" stop-color="rgba(55,125,225,0)"/></linearGradient>
           <radialGradient id="dynAuraG" cx="50%" cy="45%" r="55%"><stop offset="0%" stop-color="rgba(${r1},${g1},${b1},.30)"/><stop offset="55%" stop-color="rgba(${r2},${g2},${b2},.10)"/><stop offset="100%" stop-color="rgba(0,0,0,0)"/></radialGradient>
-          ${fpDefs}
         </defs>
         <ellipse cx="173" cy="${100-Math.round(bell*25)}" rx="155" ry="105" fill="url(#dynAuraG)"/>
         <path d="M14,65 Q173,-45 332,65 Z" fill="url(#skyG)"/>
@@ -2723,7 +3382,6 @@ ${minimalMode?`
         <rect x="${lbx}" y="${lby}" width="${lbw}" height="26" rx="13" fill="rgba(255,200,50,.22)" stroke="rgba(255,210,60,.45)" stroke-width="1.2"/>
         <text x="${lbx+lbw/2}" y="${lby+17}" text-anchor="middle" fill="rgba(255,235,110,.98)" font-size="14" font-weight="800" font-family="Inter">${this._fmtPower(solarW,'solar')} ⚡</text>
         ${moonSVG}
-        ${FL}
         ${foBAT}${foINV}${foGRD}${foHOM}
         ${gridExportToday>0.005?`<g>
           <rect x="${GRD_X}" y="${GRD_Y+GRD_H+6}" width="${GRD_W}" height="22" rx="5" fill="rgba(255,210,50,.12)" stroke="rgba(255,210,50,.35)" stroke-width="1"/>
@@ -2731,10 +3389,15 @@ ${minimalMode?`
         </g>`:''}
         ${showForecastChart?barChartSVG:''}
         ${showForecastChart?solarChartSVG:''}
-      </svg>
-    </div>
-  </div>
+        <g transform="translate(${(173*(1-_roomScale)).toFixed(2)},0) scale(${_roomScale},1)">
+        ${trunkSVG}
+        ${roomSVG}
+        </g>
+        ${roomSVGFree}
+`; // end _newSvgDataHTML
 
+    // ── Zone 4: BOT ───────────────────────────────────────────
+    const _newBotHTML=`
   <div style="padding:16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px;">
       <span style="color:rgba(255,255,255,.6);">${T.battLabel}</span>
@@ -2744,10 +3407,6 @@ ${minimalMode?`
       <div style="height:100%;width:${bPct}%;border-radius:4px;background:${bColor};box-shadow:0 0 8px ${bGlow}"></div>
     </div>
     ${battETA?`<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.65);margin-bottom:14px;">${battETA}</div>`:''}
-
-    ${!minimalMode?`<div style="overflow:hidden;white-space:nowrap;border-top:1px solid rgba(255,255,255,.10);border-bottom:1px solid rgba(255,255,255,.10);padding:7px 0;margin:0 0 14px;">
-      <div style="display:inline-block;animation:scrollTicker 22s linear infinite;font-size:12px;font-weight:600;color:rgba(255,230,120,.95);text-shadow:0 1px 6px rgba(0,0,0,.5);will-change:transform;">${ticker2}</div>
-    </div>`:'<div style="height:4px"></div>'}
 
     ${(()=>{
       // ── Stats circles SVG (design from v1.6 YAML) ──────────
@@ -2911,7 +3570,26 @@ ${minimalMode?`
     })()}
 
   </div>
-</div>`;
+`; // end _newBotHTML
+
+    // ── Apply 4 zones — mỗi zone chỉ update khi nội dung thực sự thay đổi ──
+    const _top=this._getTopLayer();
+    if(_top&&_top.innerHTML!==_newTopHTML) _top.innerHTML=_newTopHTML;
+
+    const _sunBar=this._getSunBar();
+    if(_sunBar&&_sunBar.innerHTML!==_newSunBarHTML) _sunBar.innerHTML=_newSunBarHTML;
+
+    // Zone SVG data: update trực tiếp innerHTML của <svg id="swc-svg-data">
+    // wrap (.swc-svg-wrap) và flow SVG (_animNode) KHÔNG bị đụng đến
+    const _svgData=this._getSvgData();
+    if(_svgData&&_svgData.innerHTML!==_newSvgDataHTML) _svgData.innerHTML=_newSvgDataHTML;
+
+    const _bot=this._getBotLayer();
+    if(_bot&&_bot.innerHTML!==_newBotHTML) _bot.innerHTML=_newBotHTML;
+
+    // Inject flow SVG vào .swc-svg-wrap — wrap luôn tồn tại trong shell, không bao giờ bị xóa
+    // → animation không bao giờ bị detach/reset → không nháy
+    this._injectAnimLayer(FL, fpDefs, ROOM_Y+RH+16, _needAnimRebuild, VB_X, VB_W);
   }
 }
 
@@ -2924,4 +3602,3 @@ window.customCards.push({
   preview:true,
   documentationURL:'https://github.com/doanlong1412/solar-weather-card',
 });
-
