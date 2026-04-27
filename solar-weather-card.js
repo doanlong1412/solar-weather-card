@@ -1,4 +1,35 @@
 /**
+ * v1.8.1
+ * -------
+ * [NEW] Show/Hide Clock & Weather  (`show_clock`)
+ *       — Toggle the entire top section (clock, date, temperature,
+ *         hourly strip, tomorrow forecast) from the Visual Editor.
+ *         When hidden, the section is completely removed from the DOM.
+ *
+ * [NEW] Show/Hide Rooms / Devices  (`show_rooms_section`)
+ *       — Toggle all room cards in the energy diagram SVG.
+ *         Branch flow lines are unaffected; only the room node cards
+ *         are hidden.
+ *
+ * [NEW] Show/Hide Battery Bar  (`show_battery_bar`)
+ *       — Toggle the battery percentage bar, SOC label, and ETA text
+ *         at the bottom of the card.
+ *
+ * [NEW] Show/Hide Stats Circles  (`show_stats_circles`)
+ *       — Toggle the five SVG stat circles (Saving, Solar, Home,
+ *         Grid, System) rendered below the energy diagram.
+ *
+ * [NEW] Show/Hide Battery Node  (`show_battery_node`)
+ *       — Toggle the battery card node inside the energy diagram.
+ *         When disabled the node is not rendered at all (foBAT = '').
+ *
+ * [NEW] Temperature Unit  (`temp_unit: C | F`)
+ *       — Switch all temperature values on the card between °C and °F.
+ *         Applies to: outdoor temperature, today Hi/Lo, tomorrow Hi/Lo,
+ *         Inverter temperature and Battery temperature in the stat circles.
+ *         Conversion formula: °F = °C × 9/5 + 32.
+ *         Selector added in Visual Editor Display Options.
+ *
  * v1.8.0
  *Rooms** — up to 4 configurable rooms/devices shown below the energy diagram, with custom name, icon, entity
  *YAML-style flow** — particle engine ported from YAML (stroke-dasharray animate, lighter & stable)
@@ -715,6 +746,12 @@ class SolarWeatherCardEditor extends HTMLElement {
         gridPowerUnit:'Đơn vị công suất lưới', homePowerUnit:'Đơn vị công suất nhà',
         battPowerUnit:'Đơn vị công suất', gridOptions:'🔌 TUỲ CHỌN LƯỚI', homeOptions:'🏠 TUỲ CHỌN NHÀ',
         timeFormat:'🕐 Định dạng giờ',
+        showClock:'🕐 Hiện đồng hồ & thời tiết (toàn bộ phần trên)',
+        showRoomsSection:'🏠 Hiện phòng / thiết bị',
+        showBatteryBar:'🔋 Hiện thanh pin',
+        showStatsCircles:'📊 Hiện các vòng tròn thống kê',
+        showBatteryNode:'🔋 Hiện node Pin (thẻ pin trong sơ đồ)',
+        tempUnit:'🌡️ Đơn vị nhiệt độ',
       },
       en:{
         displayOpts:'🎨 Display Options', flowStyle:'🌊 Flow style',
@@ -747,6 +784,12 @@ class SolarWeatherCardEditor extends HTMLElement {
         gridPowerUnit:'Grid power unit', homePowerUnit:'Home power unit',
         battPowerUnit:'Power unit', gridOptions:'🔌 GRID OPTIONS', homeOptions:'🏠 HOME OPTIONS',
         timeFormat:'🕐 Time format',
+        showClock:'🕐 Show clock & weather (entire top section)',
+        showRoomsSection:'🏠 Show rooms / devices',
+        showBatteryBar:'🔋 Show battery bar',
+        showStatsCircles:'📊 Show stats circles',
+        showBatteryNode:'🔋 Show Battery node (card in diagram)',
+        tempUnit:'🌡️ Temperature unit',
       },
       de:{
         displayOpts:'🎨 Anzeigeoptionen', flowStyle:'🌊 Flussstil',
@@ -1076,7 +1119,7 @@ class SolarWeatherCardEditor extends HTMLElement {
 
     <!-- CREDIT -->
     <div style="text-align:center;padding:10px 14px 4px;font-size:11px;color:var(--secondary-text-color);line-height:1.6;">
-      ☀️ V1.8.0 Designed by <strong style="color:var(--primary-color);">@doanlong1412</strong> from 🇻🇳 Vietnam 
+      ☀️ V1.8.1 Designed by <strong style="color:var(--primary-color);">@doanlong1412</strong> from 🇻🇳 Vietnam 
     </div>
 
     <!-- SOCIAL LINKS -->
@@ -1126,6 +1169,7 @@ class SolarWeatherCardEditor extends HTMLElement {
           <div class="bg">
             <div class="ob ${fs==='particle'?'on':''}" data-t="flow_style" data-v="particle">✦ Spark</div>
             <div class="ob ${fs==='wave'?'on':''}"     data-t="flow_style" data-v="wave">〰️ Wave</div>
+            <div class="ob ${fs==='bubble'?'on':''}"   data-t="flow_style" data-v="bubble">● Bubble</div>
             <div class="ob ${fs==='line'?'on':''}"     data-t="flow_style" data-v="line">── Line</div>
           </div>
         </div>
@@ -1183,6 +1227,42 @@ class SolarWeatherCardEditor extends HTMLElement {
           </div>
         </div>
 
+        <div style="height:1px;background:var(--divider-color);margin:14px 0 12px"></div>
+        <div style="font-size:11px;font-weight:700;color:var(--secondary-text-color);margin-bottom:10px;letter-spacing:.4px">👁️ ${L.language==='vi'?'ẨN / HIỆN CÁC PHẦN':'SHOW / HIDE SECTIONS'}</div>
+
+        <div class="toggle-row">
+          <label class="tl">${L.showClock||'🕐 Show clock & weather'}</label>
+          <label class="tog"><input type="checkbox" id="showClockTog" ${this._config.show_clock!==false?'checked':''}/><span class="tog-sl"></span></label>
+        </div>
+
+        <div class="toggle-row">
+          <label class="tl">${L.showRoomsSection||'🏠 Show rooms / devices'}</label>
+          <label class="tog"><input type="checkbox" id="showRoomsTog" ${this._config.show_rooms_section!==false?'checked':''}/><span class="tog-sl"></span></label>
+        </div>
+
+        <div class="toggle-row">
+          <label class="tl">${L.showBatteryBar||'🔋 Show battery bar'}</label>
+          <label class="tog"><input type="checkbox" id="showBatteryBarTog" ${this._config.show_battery_bar!==false?'checked':''}/><span class="tog-sl"></span></label>
+        </div>
+
+        <div class="toggle-row" style="margin-bottom:0">
+          <label class="tl">${L.showStatsCircles||'📊 Show stats circles'}</label>
+          <label class="tog"><input type="checkbox" id="showStatsCirclesTog" ${this._config.show_stats_circles!==false?'checked':''}/><span class="tog-sl"></span></label>
+        </div>
+
+        <div class="toggle-row" style="margin-top:12px;margin-bottom:0">
+          <label class="tl">${L.showBatteryNode||'🔋 Show Battery node'}</label>
+          <label class="tog"><input type="checkbox" id="showBatteryNodeTog" ${this._config.show_battery_node!==false?'checked':''}/><span class="tog-sl"></span></label>
+        </div>
+
+        <div style="height:1px;background:var(--divider-color);margin:14px 0 12px"></div>
+        <div class="opt-row" style="margin-bottom:0">
+          <label>${L.tempUnit||'🌡️ Temperature unit'}</label>
+          <div class="bg">
+            <div class="ob ${(this._config.temp_unit||'C')==='C'?'on':''}" data-t="temp_unit" data-v="C">°C Celsius</div>
+            <div class="ob ${this._config.temp_unit==='F'?'on':''}"         data-t="temp_unit" data-v="F">°F Fahrenheit</div>
+          </div>
+        </div>
 
       </div>
     </div>
@@ -1498,6 +1578,26 @@ class SolarWeatherCardEditor extends HTMLElement {
     const hourlyFcTog=this.shadowRoot.getElementById('hourlyFcTog');
     if(hourlyFcTog) hourlyFcTog.addEventListener('change',e=>{
       this._config={...this._config,show_hourly_forecast:e.target.checked}; this._fire();
+    });
+    const showClockTog=this.shadowRoot.getElementById('showClockTog');
+    if(showClockTog) showClockTog.addEventListener('change',e=>{
+      this._config={...this._config,show_clock:e.target.checked}; this._fire();
+    });
+    const showRoomsTog=this.shadowRoot.getElementById('showRoomsTog');
+    if(showRoomsTog) showRoomsTog.addEventListener('change',e=>{
+      this._config={...this._config,show_rooms_section:e.target.checked}; this._fire();
+    });
+    const showBatteryBarTog=this.shadowRoot.getElementById('showBatteryBarTog');
+    if(showBatteryBarTog) showBatteryBarTog.addEventListener('change',e=>{
+      this._config={...this._config,show_battery_bar:e.target.checked}; this._fire();
+    });
+    const showStatsCirclesTog=this.shadowRoot.getElementById('showStatsCirclesTog');
+    if(showStatsCirclesTog) showStatsCirclesTog.addEventListener('change',e=>{
+      this._config={...this._config,show_stats_circles:e.target.checked}; this._fire();
+    });
+    const showBatteryNodeTog=this.shadowRoot.getElementById('showBatteryNodeTog');
+    if(showBatteryNodeTog) showBatteryNodeTog.addEventListener('change',e=>{
+      this._config={...this._config,show_battery_node:e.target.checked}; this._fire();
     });
     // ── Pricing ─────────────────────────────────────────────────
     this.shadowRoot.getElementById('curInput').addEventListener('change',e=>{
@@ -2042,117 +2142,157 @@ class SolarWeatherCard extends HTMLElement {
   // flowLevel với type + particle multiplier
   _flowLevel(w,type='default'){
     const mult=parseFloat(this._config.particle_mult??1.0);
-    const _sc=(fl)=>{ if(fl.count<=6) return fl; return{...fl,count:Math.max(6,Math.round(fl.count*mult))}; };
+    const _sc=(fl)=>{ return{...fl,count:Math.max(2,Math.round(fl.count*mult))}; };
     if(type==='solar'){
-      if(w<200)  return _sc({dur:4.0,count:1,size:1.8}); if(w<600)  return _sc({dur:3.2,count:2,size:2.2});
-      if(w<1200) return _sc({dur:2.7,count:3,size:2.5}); if(w<2500) return _sc({dur:2.4,count:3,size:2.8});
-      if(w<4000) return _sc({dur:1.8,count:4,size:3.2}); if(w<6000) return _sc({dur:1.2,count:5,size:3.5});
-      return _sc({dur:0.9,count:6,size:3.8});
+      if(w<200)  return _sc({dur:4.0,count:2, size:1.8}); if(w<600)  return _sc({dur:3.2,count:4, size:2.2});
+      if(w<1200) return _sc({dur:2.7,count:5, size:2.5}); if(w<2500) return _sc({dur:2.4,count:6, size:2.8});
+      if(w<4000) return _sc({dur:1.8,count:8, size:3.2}); if(w<6000) return _sc({dur:1.2,count:9, size:3.5});
+      return _sc({dur:0.9,count:11,size:3.8});
     }
     if(type==='battery'||type==='grid'||type==='home'){
-      if(w<150)  return _sc({dur:4.0,count:1,size:1.8}); if(w<500)  return _sc({dur:3.2,count:2,size:2.2});
-      if(w<1000) return _sc({dur:2.7,count:3,size:2.5}); if(w<2000) return _sc({dur:2.4,count:3,size:2.8});
-      if(w<3000) return _sc({dur:1.8,count:4,size:3.2}); if(w<4500) return _sc({dur:1.5,count:5,size:3.5});
-      return _sc({dur:0.9,count:6,size:3.8});
+      if(w<150)  return _sc({dur:4.0,count:2, size:1.8}); if(w<500)  return _sc({dur:3.2,count:4, size:2.2});
+      if(w<1000) return _sc({dur:2.7,count:5, size:2.5}); if(w<2000) return _sc({dur:2.4,count:6, size:2.8});
+      if(w<3000) return _sc({dur:1.8,count:7, size:3.2}); if(w<4500) return _sc({dur:1.5,count:9, size:3.5});
+      return _sc({dur:0.9,count:10,size:3.8});
     }
     if(type==='room'){
-      if(w<50)   return _sc({dur:4.5,count:1,size:1.6}); if(w<200)  return _sc({dur:3.5,count:1,size:2.0});
-      if(w<500)  return _sc({dur:3.2,count:2,size:2.3}); if(w<1000) return _sc({dur:2.9,count:2,size:2.6});
-      if(w<2000) return _sc({dur:2.4,count:3,size:2.9}); if(w<3000) return _sc({dur:1.5,count:4,size:3.2});
-      return _sc({dur:0.9,count:5,size:3.5});
+      if(w<50)   return _sc({dur:4.5,count:2, size:1.6}); if(w<200)  return _sc({dur:3.5,count:3, size:2.0});
+      if(w<500)  return _sc({dur:3.2,count:4, size:2.3}); if(w<1000) return _sc({dur:2.9,count:5, size:2.6});
+      if(w<2000) return _sc({dur:2.4,count:6, size:2.9}); if(w<3000) return _sc({dur:1.5,count:7, size:3.2});
+      return _sc({dur:0.9,count:8, size:3.5});
     }
-    if(w<200)  return _sc({dur:4.0,count:1,size:1.8}); if(w<600)  return _sc({dur:3.5,count:2,size:2.2});
-    if(w<1200) return _sc({dur:3.0,count:3,size:2.5}); if(w<2500) return _sc({dur:2.5,count:3,size:2.8});
-    if(w<4000) return _sc({dur:1.9,count:4,size:3.2}); if(w<6000) return _sc({dur:1.5,count:5,size:3.5});
-    return _sc({dur:1.2,count:6,size:3.8});
+    if(w<200)  return _sc({dur:4.0,count:2, size:1.8}); if(w<600)  return _sc({dur:3.5,count:4, size:2.2});
+    if(w<1200) return _sc({dur:3.0,count:5, size:2.5}); if(w<2500) return _sc({dur:2.5,count:6, size:2.8});
+    if(w<4000) return _sc({dur:1.9,count:7, size:3.2}); if(w<6000) return _sc({dur:1.5,count:9, size:3.5});
+    return _sc({dur:1.2,count:10,size:3.8});
   }
 
   // ── YAML-style particle flow (stroke-dasharray animate — nhẹ hơn, ổn định hơn) ──
   _particles(pathD,pid,color,gc,fl,elapsed=0){
     const rng=(seed)=>((seed*1664525+1013904223)&0x7fffffff)/0x7fffffff;
-    let h=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="0.6" stroke-dasharray="3,22" opacity="0.08" stroke-linecap="round"/>`;
-    const n=fl.count, spreadMax=fl.size*1.5;
+    let h=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="0.6" stroke-dasharray="3,18" opacity="0.10" stroke-linecap="round"/>`;
+    const n=fl.count, spreadMax=fl.size*3.5;
     for(let i=0;i<n;i++){
-      const r1=rng(i*137+31)%97/97, r2=rng(i*251+73)%89/89, r3=rng(i*179+11)%83/83;
-      const r4=rng(i*313+53)%79/79, r5=rng(i*401+17)%71/71, r6=rng(i*461+29)%67/67;
-      const dashLen=(2+r1*r1*14).toFixed(1);
-      const gapLen=(30+r2*40).toFixed(1);
+      const r1=rng(i*137+31), r2=rng(i*251+73), r3=rng(i*179+11);
+      const r4=rng(i*313+53), r5=rng(i*401+17), r6=rng(i*461+29);
+      const r7=rng(i*557+43), r8=rng(i*631+67);
+      // Shorter dashes + smaller gaps → dày hơn, trông như dòng suối
+      const dashLen=(1.5+r1*r1*9).toFixed(1);
+      const gapLen=(8+r2*20).toFixed(1);
       const cycle=parseFloat(dashLen)+parseFloat(gapLen);
-      const dur=(fl.dur*(0.55+r3*0.9)).toFixed(2);
-      // Phase: combine random offset + elapsed so animation continues from same point after re-render
+      // Speed variation: some fast, some slow → hỗn độn
+      const speedFactor=0.35+r7*r7*1.3; // phi tuyến: vài hạt rất nhanh, vài rất chậm
+      const dur=(fl.dur*speedFactor).toFixed(2);
       const durF=parseFloat(dur);
       const rawPhase=r4*durF;
       const phaseOff=((rawPhase+elapsed)%durF).toFixed(3);
-      const spreadFrac=r6*r6;
-      const sign=(i%2===0)?1:-1;
-      const ox=(sign*spreadFrac*spreadMax).toFixed(1);
-      const oy=(sign*spreadFrac*spreadMax*0.35).toFixed(1);
-      const bright=r5>0.78, dark=r5<0.22;
+      // Wild scatter: chaotic x and y offsets like a turbulent stream
+      const angle=r8*Math.PI*2; // random direction scatter
+      const spreadFrac=r6*r6;   // more particles near center, some fly wide
+      const scatterDist=spreadFrac*spreadMax;
+      const ox=(Math.cos(angle)*scatterDist + (r1-0.5)*fl.size*1.2).toFixed(1);
+      const oy=(Math.sin(angle)*scatterDist*0.6 + (r2-0.5)*fl.size*0.8).toFixed(1);
+      const bright=r5>0.75, dark=r5<0.18;
       let strokeColor, opacity, strokeW;
-      if(bright){ strokeColor='rgba(255,255,255,0.88)'; opacity=(0.60+r1*0.22).toFixed(2); strokeW='1.2'; }
-      else if(dark){ strokeColor=color; opacity=(0.10+r2*0.12).toFixed(2); strokeW='0.5'; }
-      else { strokeColor=color; opacity=(0.28+r3*0.38).toFixed(2); strokeW=(0.8+r4*0.6).toFixed(1); }
-      const distFade=(1-spreadFrac*0.65).toFixed(2);
+      if(bright){ strokeColor='rgba(255,255,255,0.92)'; opacity=(0.55+r1*0.30).toFixed(2); strokeW=(0.8+r3*0.6).toFixed(1); }
+      else if(dark){ strokeColor=color; opacity=(0.06+r2*0.10).toFixed(2); strokeW='0.4'; }
+      else { strokeColor=color; opacity=(0.22+r3*0.50).toFixed(2); strokeW=(0.6+r4*0.8).toFixed(1); }
+      const distFade=(1-spreadFrac*0.55).toFixed(2);
       opacity=(parseFloat(opacity)*parseFloat(distFade)).toFixed(2);
       if(bright){
-        h+=`<g transform="translate(${ox},${oy})"><path d="${pathD}" fill="none" stroke="${gc}" stroke-width="3" stroke-dasharray="${dashLen} ${gapLen}" stroke-linecap="round" opacity="${(0.18*parseFloat(distFade)).toFixed(2)}" filter="url(#pBlur)"><animate attributeName="stroke-dashoffset" from="${cycle.toFixed(1)}" to="0" dur="${dur}s" begin="-${phaseOff}s" repeatCount="indefinite" calcMode="linear"/></path></g>`;
+        h+=`<g transform="translate(${ox},${oy})"><path d="${pathD}" fill="none" stroke="${gc}" stroke-width="${(parseFloat(strokeW)+1.5).toFixed(1)}" stroke-dasharray="${dashLen} ${gapLen}" stroke-linecap="round" opacity="${(0.22*parseFloat(distFade)).toFixed(2)}" filter="url(#pBlur)"><animate attributeName="stroke-dashoffset" from="${cycle.toFixed(1)}" to="0" dur="${dur}s" begin="-${phaseOff}s" repeatCount="indefinite" calcMode="linear"/></path></g>`;
       }
-      // Note: animateMotion removed — causes jank on SVG re-render due to position reset
       h+=`<g transform="translate(${ox},${oy})"><path d="${pathD}" fill="none" stroke="${strokeColor}" stroke-width="${strokeW}" stroke-dasharray="${dashLen} ${gapLen}" stroke-linecap="round" opacity="${opacity}"><animate attributeName="stroke-dashoffset" from="${cycle.toFixed(1)}" to="0" dur="${dur}s" begin="-${phaseOff}s" repeatCount="indefinite" calcMode="linear"/></path></g>`;
     }
-    // core bright line — use elapsed to keep phase continuous across re-renders
-    const coreDash=(fl.size*2.5).toFixed(1), coreGap=(fl.size*14).toFixed(1), coreDur=(fl.dur*0.7).toFixed(2);
+    // core bright line
+    const coreDash=(fl.size*2.2).toFixed(1), coreGap=(fl.size*8).toFixed(1), coreDur=(fl.dur*0.65).toFixed(2);
     const coreDurF=parseFloat(coreDur), corePhase=(elapsed%coreDurF).toFixed(3);
     const coreCycle=(parseFloat(coreDash)+parseFloat(coreGap)).toFixed(1);
-    h+=`<path d="${pathD}" fill="none" stroke="rgba(255,255,255,0.70)" stroke-width="1.2" stroke-dasharray="${coreDash} ${coreGap}" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="${coreCycle}" to="0" dur="${coreDur}s" begin="-${corePhase}s" repeatCount="indefinite" calcMode="linear"/></path>`;
-    h+=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="0.8" stroke-dasharray="${coreDash} ${coreGap}" stroke-linecap="round" opacity="0.75"><animate attributeName="stroke-dashoffset" from="${coreCycle}" to="0" dur="${coreDur}s" begin="-${corePhase}s" repeatCount="indefinite" calcMode="linear"/></path>`;
+    h+=`<path d="${pathD}" fill="none" stroke="rgba(255,255,255,0.78)" stroke-width="1.4" stroke-dasharray="${coreDash} ${coreGap}" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="${coreCycle}" to="0" dur="${coreDur}s" begin="-${corePhase}s" repeatCount="indefinite" calcMode="linear"/></path>`;
+    h+=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="0.9" stroke-dasharray="${coreDash} ${coreGap}" stroke-linecap="round" opacity="0.80"><animate attributeName="stroke-dashoffset" from="${coreCycle}" to="0" dur="${coreDur}s" begin="-${corePhase}s" repeatCount="indefinite" calcMode="linear"/></path>`;
     return h;
   }
 
-  // ── Wave flow ────────────────────────────────────────────────
-  _wave(pathD,pid,color,gc,fl,elapsed=0){
+  // ── Bubble flow (animateMotion circles — YAML style) ──────────
+  _bubble(pathD,pid,color,gc,fl,elapsed=0){
     const rng=(seed)=>((seed*1664525+1013904223)&0x7fffffff)/0x7fffffff;
+    let h=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="0.5" stroke-dasharray="2,20" opacity="0.08" stroke-linecap="round"/>`;
+    const n=fl.count;
+    // glow halos (fewer, large soft circles)
+    const glowCount=Math.ceil(n/3);
+    for(let j=0;j<glowCount;j++){
+      const gd=((j/glowCount*fl.dur)+elapsed%fl.dur).toFixed(3)%fl.dur;
+      const r=(fl.size*2.8).toFixed(2);
+      h+=`<circle r="${r}" fill="${gc}" opacity="0.22" filter="url(#pBlur)">`
+        +`<animateMotion dur="${fl.dur}s" begin="-${gd}s" repeatCount="indefinite" rotate="auto">`
+        +`<mpath href="#${pid}"/>`
+        +`</animateMotion>`
+        +`</circle>`;
+    }
+    // main bubbles — vary size and opacity
+    for(let i=0;i<n;i++){
+      const r1=rng(i*137+31), r2=rng(i*251+73), r3=rng(i*179+11), r4=rng(i*461+97);
+      const delay=((i/n*fl.dur)+elapsed%fl.dur).toFixed(3);
+      const sz=(fl.size*(0.55+r1*0.85)).toFixed(2);
+      const op=(0.55+r2*0.40).toFixed(2);
+      const isWhite=r3>0.72;
+      const fill=isWhite?'rgba(255,255,255,0.90)':color;
+      const opFinal=(isWhite?(0.65+r4*0.25):(0.45+r2*0.45)).toFixed(2);
+      h+=`<circle r="${sz}" fill="${fill}" opacity="${opFinal}">`
+        +`<animateMotion dur="${(fl.dur*(0.7+r1*0.65)).toFixed(2)}s" begin="-${delay}s" repeatCount="indefinite" rotate="auto">`
+        +`<mpath href="#${pid}"/>`
+        +`</animateMotion>`
+        +`</circle>`;
+    }
+    // bright hot-spot specks (smallest, fastest, pure white)
+    const hotCount=Math.ceil(n*0.4);
+    for(let hc=0;hc<hotCount;hc++){
+      const r1=rng(hc*311+41);
+      const hcd=((hc/hotCount*fl.dur*0.5)+elapsed%fl.dur).toFixed(3);
+      const hsz=(fl.size*0.38+r1*0.3).toFixed(2);
+      h+=`<circle r="${hsz}" fill="rgba(255,255,255,0.95)" opacity="0.88" filter="url(#pBlurSm)">`
+        +`<animateMotion dur="${(fl.dur*0.55).toFixed(2)}s" begin="-${hcd}s" repeatCount="indefinite" rotate="auto">`
+        +`<mpath href="#${pid}"/>`
+        +`</animateMotion>`
+        +`</circle>`;
+    }
+    return h;
+  }
+
+  // ── Wave flow — river/snake: đoạn dài cuộn chảy như dòng nước ──
+  _wave(pathD,pid,color,gc,fl,elapsed=0){
     let h='';
-    const dashDurF=fl.dur*0.8, dashDur=dashDurF.toFixed(2);
-    const dashLen=(8+fl.size*1.5).toFixed(1);
-    const gapLen=(6+fl.size*1.2).toFixed(1);
-    const dashTotal=(parseFloat(dashLen)+parseFloat(gapLen)).toFixed(1);
-    const dashPhase=(elapsed%dashDurF).toFixed(3);
-    h+=`<path d="${pathD}" fill="none" stroke="${gc}" stroke-width="6" stroke-dasharray="${dashLen} ${gapLen}" stroke-linecap="round" opacity="0.25" filter="url(#pBlur)"><animate attributeName="stroke-dashoffset" from="${dashTotal}" to="0" dur="${dashDur}s" begin="-${dashPhase}s" repeatCount="indefinite" calcMode="linear"/></path>`;
-    h+=`<path d="${pathD}" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.8" stroke-dasharray="${dashLen} ${gapLen}" stroke-linecap="round"><animate attributeName="stroke-dashoffset" from="${dashTotal}" to="0" dur="${dashDur}s" begin="-${dashPhase}s" repeatCount="indefinite" calcMode="linear"/></path>`;
-    h+=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="1.0" stroke-dasharray="${dashLen} ${gapLen}" stroke-linecap="round" opacity="0.85"><animate attributeName="stroke-dashoffset" from="${dashTotal}" to="0" dur="${dashDur}s" begin="-${dashPhase}s" repeatCount="indefinite" calcMode="linear"/></path>`;
-    const waveDefs=[
-      {amp:6,period:28,dur:fl.dur*0.9,ox:0,op:0.9,sc:'rgba(255,255,255,0.92)'},
-      {amp:10,period:38,dur:fl.dur*1.1,ox:3,op:0.6,sc:color},
-      {amp:8,period:22,dur:fl.dur*0.75,ox:-3,op:0.45,sc:gc},
+    const durF=fl.dur;
+
+    // Kênh nền: đường mờ tĩnh cho thấy path
+    h+=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="3.5" stroke-linecap="round" opacity="0.10"/>`;
+    h+=`<path d="${pathD}" fill="none" stroke="${gc}"    stroke-width="7"   stroke-linecap="round" opacity="0.07" filter="url(#pBlur)"/>`;
+
+    // Các "con rắn" — đoạn dài chạy nối tiếp nhau, mỗi con lệch tốc độ 1 chút
+    const snakes=[
+      {dashLen:55, gap:30, w:4.5, wGlow:12, speed:1.00, op:0.88, opG:0.28},
+      {dashLen:40, gap:25, w:3.0, wGlow:8,  speed:0.82, op:0.65, opG:0.20},
+      {dashLen:30, gap:20, w:2.0, wGlow:6,  speed:1.20, op:0.45, opG:0.14},
     ];
-    const wc=Math.min(2,Math.max(1,Math.round(fl.count/5)));
-    for(let wi=0;wi<wc;wi++){
-      const wd=waveDefs[wi],sineCount=Math.round(fl.count*0.5),sineDurF=wd.dur,sineDur=sineDurF.toFixed(2);
-      // Replace animateMotion (causes jank) with staggered dash animations offset by translate
-      const sineDashLen=(3+wi*1.5).toFixed(1);
-      const sineDashGap=(40+wi*10).toFixed(1);
-      const sineCycle=(parseFloat(sineDashLen)+parseFloat(sineDashGap)).toFixed(1);
-      for(let si=0;si<sineCount;si++){
-        const frac=si/sineCount,phase=frac*Math.PI*2;
-        const sY=(wd.amp*Math.sin(phase+wi*1.1)).toFixed(1);
-        const sX=(wd.ox+wd.amp*0.3*Math.cos(phase*0.5)).toFixed(1);
-        const rawDelay=frac*sineDurF;
-        const sDelay=((rawDelay+elapsed)%sineDurF).toFixed(3);
-        const sOp=(wd.op*(0.5+0.5*Math.abs(Math.sin(phase)))*0.6).toFixed(2);
-        h+=`<g transform="translate(${sX},${sY})"><path d="${pathD}" fill="none" stroke="${wd.sc}" stroke-width="1.2" stroke-dasharray="${sineDashLen} ${sineDashGap}" stroke-linecap="round" opacity="${sOp}"><animate attributeName="stroke-dashoffset" from="${sineCycle}" to="0" dur="${sineDur}s" begin="-${sDelay}s" repeatCount="indefinite" calcMode="linear"/></path></g>`;
-      }
+    const nSnakes=fl.count<=3?1:fl.count<=6?2:3;
+
+    for(let si=0;si<nSnakes;si++){
+      const s=snakes[si];
+      const cycle=(s.dashLen+s.gap).toFixed(1);
+      const durSF=durF*s.speed, durS=durSF.toFixed(2);
+      const phaseOff=((elapsed + si*(durSF/nSnakes)) % durSF).toFixed(3);
+
+      // glow rộng
+      h+=`<path d="${pathD}" fill="none" stroke="${gc}" stroke-width="${s.wGlow}" stroke-dasharray="${s.dashLen} ${s.gap}" stroke-linecap="round" opacity="${s.opG}" filter="url(#pBlur)"><animate attributeName="stroke-dashoffset" from="${cycle}" to="0" dur="${durS}s" begin="-${phaseOff}s" repeatCount="indefinite" calcMode="linear"/></path>`;
+      // thân chính
+      h+=`<path d="${pathD}" fill="none" stroke="${color}" stroke-width="${s.w}" stroke-dasharray="${s.dashLen} ${s.gap}" stroke-linecap="round" opacity="${s.op}"><animate attributeName="stroke-dashoffset" from="${cycle}" to="0" dur="${durS}s" begin="-${phaseOff}s" repeatCount="indefinite" calcMode="linear"/></path>`;
+      // highlight trắng chạy trên lưng
+      const hDash=(s.dashLen*0.55).toFixed(1);
+      const hGap=(s.gap+s.dashLen*0.45).toFixed(1);
+      const hCycle=(parseFloat(hDash)+parseFloat(hGap)).toFixed(1);
+      h+=`<path d="${pathD}" fill="none" stroke="rgba(255,255,255,0.82)" stroke-width="${(s.w*0.38).toFixed(1)}" stroke-dasharray="${hDash} ${hGap}" stroke-linecap="round" opacity="0.70"><animate attributeName="stroke-dashoffset" from="${hCycle}" to="0" dur="${durS}s" begin="-${phaseOff}s" repeatCount="indefinite" calcMode="linear"/></path>`;
     }
-    const dustCount=Math.round(fl.count*0.5);
-    for(let di=0;di<dustCount;di++){
-      const r1=rng(di*167+41),r2=rng(di*233+61),r3=rng(di*311+23),r4=rng(di*421+37);
-      const dox=((r1-0.5)*fl.size*6).toFixed(1),doy=((r2-0.5)*fl.size*6).toFixed(1);
-      const dDurF=fl.dur*(0.6+r3*0.8),dDur=dDurF.toFixed(2);
-      const dDelay=((r4*dDurF+elapsed)%dDurF).toFixed(3);
-      const dDash=(1.5+r1*3).toFixed(1), dGap=(35+r2*25).toFixed(1);
-      const dCycle=(parseFloat(dDash)+parseFloat(dGap)).toFixed(1);
-      h+=`<g transform="translate(${dox},${doy})"><path d="${pathD}" fill="none" stroke="${r3>0.6?'rgba(255,255,255,0.7)':color}" stroke-width="${(0.5+r1*0.8).toFixed(1)}" stroke-dasharray="${dDash} ${dGap}" stroke-linecap="round" opacity="${(0.12+r2*0.3).toFixed(2)}"><animate attributeName="stroke-dashoffset" from="${dCycle}" to="0" dur="${dDur}s" begin="-${dDelay}s" repeatCount="indefinite" calcMode="linear"/></path></g>`;
-    }
+
     return h;
   }
 
@@ -2225,7 +2365,7 @@ class SolarWeatherCard extends HTMLElement {
   _render(){
     if(!this._hass) return;
     const cfg=this._config;
-    if(!Object.values(cfg).some(v=>v&&String(v).trim()&&!['particle','wave','line','vi','en','de','it','fr','nl','pl','sv','hu','12h','24h'].includes(v)&&isNaN(v)&&v!=='đ'&&v!=='€'&&v!=='$')){ this._unconfigured(); return; }
+    if(!Object.values(cfg).some(v=>v&&String(v).trim()&&!['particle','wave','bubble','line','vi','en','de','it','fr','nl','pl','sv','hu','12h','24h'].includes(v)&&isNaN(v)&&v!=='đ'&&v!=='€'&&v!=='$')){ this._unconfigured(); return; }
 
     // Track how long animations have been running so begin offsets keep phase continuity across re-renders
     if(!this._animStart) this._animStart=performance.now();
@@ -2236,6 +2376,7 @@ class SolarWeatherCard extends HTMLElement {
     const flowStyle=cfg.flow_style||'particle';
     const isParticle=flowStyle==='particle';
     const isWave=flowStyle==='wave';
+    const isBubble=flowStyle==='bubble';
     const bgOp=(cfg.background_opacity??45)/100;
     const bgPreset=cfg.bg_preset||'default';
     const bgColor1=cfg.bg_color1||'#001e2b';
@@ -2246,6 +2387,14 @@ class SolarWeatherCard extends HTMLElement {
     const showForecastChart=cfg.show_forecast_chart!==false;
     const showHourlyForecast=cfg.show_hourly_forecast!==false;
     const minimalMode=cfg.minimal_mode===true;
+    const showClock=cfg.show_clock!==false;
+    const showRoomsSection=cfg.show_rooms_section!==false;
+    const showBatteryBar=cfg.show_battery_bar!==false;
+    const showStatsCircles=cfg.show_stats_circles!==false;
+    const showBatteryNode=cfg.show_battery_node!==false;
+    const useFahrenheit=cfg.temp_unit==='F';
+    const _toDisplayTemp=(c)=>c===null?null:(useFahrenheit?Math.round(c*9/5+32):c);
+    const _tempSuffix=useFahrenheit?'°F':'°C';
     const currency=cfg.currency||'đ';
     const _hexToRgba=(hex,a)=>{try{const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return `rgba(${r},${g},${b},${parseFloat(a).toFixed(2)})`;}catch{return hex;}};
     const _bgPresets={
@@ -2283,7 +2432,8 @@ class SolarWeatherCard extends HTMLElement {
     // Đọc sensors — theo YAML gốc: đọc trực tiếp từ hass.states
     const _rS=(k)=>{ const id=this._config[k]; if(!id||!this._hass) return null; const s=this._hass.states[id]; if(!s||s.state==='unavailable'||s.state==='unknown') return null; const v=parseFloat(s.state); return isNaN(v)?null:v; };
     const tempRaw=_rS('temperature_entity');
-    const temp=tempRaw!==null?tempRaw.toFixed(1):null;
+    const tempRawNum=tempRaw!==null?tempRaw:null;
+    const temp=tempRawNum!==null?_toDisplayTemp(tempRawNum).toFixed(useFahrenheit?0:1):null;
     const humidRaw=_rS('humidity_entity');
     const humid=humidRaw!==null?Math.round(humidRaw):null;
     const uvRaw=_rS('uv_entity');
@@ -2324,6 +2474,9 @@ class SolarWeatherCard extends HTMLElement {
         tempLo=isNaN(_tlo)?'--':Math.round(_tlo);
       }
     }
+    // Convert tempHi/Lo to display unit
+    if(tempHi!=='--') tempHi=_toDisplayTemp(tempHi);
+    if(tempLo!=='--') tempLo=_toDisplayTemp(tempLo);
 
     const condHTML=wState?makeWeatherIcon(wState):makeWeatherIcon('cloudy');
 
@@ -2367,6 +2520,9 @@ class SolarWeatherCard extends HTMLElement {
         tmrLo=isNaN(_tlo1)?'--':Math.round(_tlo1);
       }
     }
+    // Convert tmrHi/Lo to display unit
+    if(tmrHi!=='--') tmrHi=_toDisplayTemp(tmrHi);
+    if(tmrLo!=='--') tmrLo=_toDisplayTemp(tmrLo);
     const tmrHTML=makeWeatherIcon(tmrWstate||'cloudy');
 
     // Solar — hỗ trợ unit W/kW
@@ -2420,8 +2576,8 @@ class SolarWeatherCard extends HTMLElement {
     const savingUse=this._calcCost(parseFloat(dailyuse));
     const savFmtUse=this._fmtSaving(savingUse);
     const luxState=this._g('inverter_status_entity','--');
-    const invTemp=this._gf('inverter_temp_entity',0).toFixed(1);
-    const batTemp=this._gf('battery_temp_entity',0).toFixed(1);
+    const invTemp=useFahrenheit?_toDisplayTemp(this._gf('inverter_temp_entity',0)).toFixed(0):this._gf('inverter_temp_entity',0).toFixed(1);
+    const batTemp=useFahrenheit?_toDisplayTemp(this._gf('battery_temp_entity',0)).toFixed(0):this._gf('battery_temp_entity',0).toFixed(1);
     const isOff=['--','unavailable','unknown','Unavailable'].includes(luxState);
     const isNormal=['Normal','normal','online','Online','ONLINE'].includes(luxState);
     const stColor=isNormal?'rgba(74,222,128,1)':isOff?'rgba(255,80,80,1)':'rgba(255,200,60,1)';
@@ -2477,6 +2633,7 @@ class SolarWeatherCard extends HTMLElement {
       const id=`fp-${fpIdx++}`;
       fpDefs+=`<path id="${id}" d="${path}"/>`;
       if(isWave)         FL+=this._wave(path,id,color,gc,fl,_animElapsed);
+      else if(isBubble)  FL+=this._bubble(path,id,color,gc,fl,_animElapsed);
       else if(isParticle)FL+=this._particles(path,id,color,gc,fl,_animElapsed);
       else {
         // line style — dùng wHint (W thực) nếu có, fallback ước từ fl
@@ -2491,34 +2648,34 @@ class SolarWeatherCard extends HTMLElement {
 
     if(hasSolar){
       const sp=`M ${bx.toFixed(1)},${(by+7).toFixed(1)} C ${bx.toFixed(1)},${INV_TOP-70} ${INV_CX},${INV_TOP-150} ${INV_CX},${INV_TOP}`;
-      if(isParticle||isWave) addFlow(sp,clrFlowSolar,'rgba(255,190,20,.55)',this._flowLevel(solarW,'solar'));
+      if(isParticle||isWave||isBubble) addFlow(sp,clrFlowSolar,'rgba(255,190,20,.55)',this._flowLevel(solarW,'solar'));
       else addLine(sp,solarW,8000,'rgba(255,250,200,X)','rgba(255,215,55,X)','rgba(255,235,120,X)');
     }
     if(isCharge){
       // Charge: exit left edge of inverter → curve up-left → enter bottom of battery
       const INV_LEFT_Y=INV_Y+INV_H*0.45;
       const p=`M${INV_X},${INV_LEFT_Y} C ${INV_X-40},${INV_LEFT_Y} ${BAT_CX},${BAT_BOT+50} ${BAT_CX},${BAT_BOT}`;
-      if(isParticle||isWave) addFlow(p,clrFlowBatt,'rgba(20,160,70,.55)',this._flowLevel(battFlW,'battery'));
+      if(isParticle||isWave||isBubble) addFlow(p,clrFlowBatt,'rgba(20,160,70,.55)',this._flowLevel(battFlW,'battery'));
       else addLine(p,battFlW,6000,'rgba(200,255,220,X)','rgba(80,220,120,X)','rgba(160,240,180,X)');
     }
     if(isDisch){
       const p=`M${BAT_R},${BAT_CY} C ${BAT_R},${BAT_CY+40} ${INV_CX},${INV_TOP-90} ${INV_CX-10},${INV_TOP}`;
-      if(isParticle||isWave) addFlow(p,'rgba(255,205,40,.95)','rgba(200,140,10,.55)',this._flowLevel(Math.abs(battFlW),'battery'));
+      if(isParticle||isWave||isBubble) addFlow(p,'rgba(255,205,40,.95)','rgba(200,140,10,.55)',this._flowLevel(Math.abs(battFlW),'battery'));
       else addLine(p,Math.abs(battFlW),6000,'rgba(255,245,180,X)','rgba(255,200,60,X)','rgba(255,230,130,X)');
     }
     if(hasGrid){
       const gp=gridFlW>10?`M${INV_CX},${INV_TOP} C ${INV_CX},${INV_TOP-60} ${GRD_L},${GRD_CY+60} ${GRD_L},${GRD_CY}`:`M${GRD_L},${GRD_CY} C ${GRD_L},${GRD_CY+40} ${INV_CX+10},${INV_TOP-90} ${INV_CX+10},${INV_TOP}`;
-      if(isParticle||isWave) addFlow(gp,clrFlowGrid,'rgba(30,130,230,.55)',this._flowLevel(Math.abs(gridFlW),'grid'));
+      if(isParticle||isWave||isBubble) addFlow(gp,clrFlowGrid,'rgba(30,130,230,.55)',this._flowLevel(Math.abs(gridFlW),'grid'));
       else addLine(gp,Math.abs(gridFlW),6000,'rgba(220,240,255,X)','rgba(90,175,255,X)','rgba(160,210,255,X)');
     }
     if(hasHome){
       const p=`M${INV_CX},${INV_BOT+2} C ${INV_CX},${INV_BOT+20} ${HOM_CX},${HOM_TOP-20} ${HOM_CX},${HOM_TOP-2}`;
-      if(isParticle||isWave) addFlow(p,clrFlowHome,'rgba(200,90,10,.55)',this._flowLevel(homeFlW,'home'));
+      if(isParticle||isWave||isBubble) addFlow(p,clrFlowHome,'rgba(200,90,10,.55)',this._flowLevel(homeFlW,'home'));
       else addLine(p,homeFlW,6000,'rgba(255,230,180,X)','rgba(255,148,55,X)','rgba(255,190,100,X)');
     }
     if(hasGridDirect){
       const p=`M${GRD_CX},${GRD_Y+GRD_H} C ${GRD_CX},${GRD_Y+GRD_H+80} ${HOM_CX+60},${HOM_TOP-60} ${HOM_CX},${HOM_TOP}`;
-      if(isParticle||isWave) addFlow(p,clrFlowGrid,'rgba(30,130,230,.55)',this._flowLevel(gridDirectW,'grid'));
+      if(isParticle||isWave||isBubble) addFlow(p,clrFlowGrid,'rgba(30,130,230,.55)',this._flowLevel(gridDirectW,'grid'));
       else addLine(p,gridDirectW,6000,'rgba(220,240,255,X)','rgba(90,175,255,X)','rgba(160,210,255,X)');
     }
 
@@ -2975,7 +3132,7 @@ class SolarWeatherCard extends HTMLElement {
 
     // Node cards
     const isInvActive=!invOff&&(hasSolar||hasHome||hasGrid||isCharge||isDisch);
-    const foBAT=this._svgCard(BAT_X,BAT_Y,BAT_W,BAT_H,clrNodeBat,clrNodeBatG,'rgba(0,14,8,.97)',batIcoFn,battW,battDir,`${bVolt.toFixed(0)}V DC`,isCharge||isDisch,showGlow,minimalMode);
+    const foBAT=showBatteryNode?this._svgCard(BAT_X,BAT_Y,BAT_W,BAT_H,clrNodeBat,clrNodeBatG,'rgba(0,14,8,.97)',batIcoFn,battW,battDir,`${bVolt.toFixed(0)}V DC`,isCharge||isDisch,showGlow,minimalMode):'';
     const foINV=this._svgCard(INV_X,INV_Y,INV_W,INV_H,clrNodeInv,clrNodeInvG,'rgba(6,2,18,.97)',invIcoFn,`${gridV}V`,'AC Output',`${bVolt.toFixed(0)}V BAT · ${pvDC}V PV`,isInvActive,showGlow,minimalMode);
     const foGRD=this._svgCard(GRD_X,GRD_Y,GRD_W,GRD_H,clrNodeGrd,clrNodeGrdG,'rgba(0,10,20,.97)',grdIcoFn,gridW,gridDir,`${gridV}V AC`,hasGrid,showGlow,minimalMode);
     const foHOM=this._svgCard(HOM_X,HOM_Y,HOM_W,HOM_H,clrNodeHom,clrNodeHomG,'rgba(12,6,0,.97)',homIcoFn,homeW,T.homeConsume,'Home',hasHome,showGlow,minimalMode);
@@ -3277,7 +3434,7 @@ ${minimalMode?`*,*::before,*::after{animation-duration:0.001s!important;animatio
     // → flow SVG (_animNode) luôn sống trong wrap → animation không bao giờ bị reset
 
     // ── Zone 1: TOP ───────────────────────────────────────────
-    const _newTopHTML=`
+    const _newTopHTML=showClock?`
   ${showInfo?`<div style="padding:18px 16px 14px;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);">
     <div style="display:grid;grid-template-columns:80px 1fr 40px;align-items:center;margin-bottom:12px;">
       <div>${wState?condHTML:'<div style="width:70px;height:70px;display:flex;align-items:center;justify-content:center;font-size:28px;opacity:.25;">🌤️</div>'}</div>
@@ -3288,8 +3445,8 @@ ${minimalMode?`*,*::before,*::after{animation-duration:0.001s!important;animatio
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 0;font-size:12px;color:rgba(255,255,255,.6);margin-bottom:8px;">
       <div>${cond||'--'}</div>
-      <div style="text-align:right;">${(tempHi!=='--')?`⚡ <span style="color:#fff;font-weight:600;">${tempHi}°</span> / <span style="color:rgba(255,255,255,.6);">${tempLo}°C</span>`:'<span style="color:rgba(255,255,255,.35);">-- / --°C</span>'}</div>
-      <div>${temp!==null?`🌡️ <span style="color:#fff;font-weight:600;">${temp}°C</span>`:'<span style="color:rgba(255,255,255,.35);">🌡️ --°C</span>'}${(temp!==null||humid!==null)?` &nbsp;`:''} ${humid!==null?`💧 <span style="color:#fff;font-weight:600;">${humid}%</span>`:'<span style="color:rgba(255,255,255,.35);">💧 --%</span>'}</div>
+      <div style="text-align:right;">${(tempHi!=='--')?`⚡ <span style="color:#fff;font-weight:600;">${tempHi}°</span> / <span style="color:rgba(255,255,255,.6);">${tempLo}${_tempSuffix}</span>`:`<span style="color:rgba(255,255,255,.35);">-- / --${_tempSuffix}</span>`}</div>
+      <div>${temp!==null?`🌡️ <span style="color:#fff;font-weight:600;">${temp}${_tempSuffix}</span>`:`<span style="color:rgba(255,255,255,.35);">🌡️ --${_tempSuffix}</span>`}${(temp!==null||humid!==null)?` &nbsp;`:''} ${humid!==null?`💧 <span style="color:#fff;font-weight:600;">${humid}%</span>`:'<span style="color:rgba(255,255,255,.35);">💧 --%</span>'}</div>
       <div style="text-align:right;">${uv!==null?`UV <span style="color:#fff;font-weight:600;">${uv}</span> &nbsp;`:''}${press!==null?`🌬️ <span style="color:#fff;font-weight:600;">${press} hPa</span>`:''}</div>
     </div>
     ${showHourlyForecast?(()=>{
@@ -3325,7 +3482,7 @@ ${minimalMode?`*,*::before,*::after{animation-duration:0.001s!important;animatio
       <span style="color:rgba(255,255,255,.45);">${T.tomorrow}</span>
       <div style="transform:scale(0.55);transform-origin:center center;width:40px;height:25px;flex-shrink:0;position:relative;top:-18px;">${tmrHTML}</div>
       <span style="color:#fff;font-weight:600;">${tmrWstate?tmrW:'--'}</span>
-      ${tmrHi!=='--'?`<span style="margin-left:auto;color:#fff;font-weight:600;">${tmrHi}°</span><span style="color:rgba(255,255,255,.45);">/</span><span style="color:rgba(255,255,255,.65);">${tmrLo}°C</span>`:'<span style="margin-left:auto;color:rgba(255,255,255,.35);">-- / --°C</span>'}
+      ${tmrHi!=='--'?`<span style="margin-left:auto;color:#fff;font-weight:600;">${tmrHi}°</span><span style="color:rgba(255,255,255,.45);">/</span><span style="color:rgba(255,255,255,.65);">${tmrLo}${_tempSuffix}</span>`:`<span style="margin-left:auto;color:rgba(255,255,255,.35);">-- / --${_tempSuffix}</span>`}
     </div>`:''}
   </div>`:`
   <div style="padding:16px 16px 14px;border-bottom:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);">
@@ -3338,7 +3495,7 @@ ${minimalMode?`*,*::before,*::after{animation-duration:0.001s!important;animatio
       <div></div>
     </div>
   </div>`}
-`; // end _newTopHTML
+`:'';
 
     // ── Zone 2: SUN BAR ───────────────────────────────────────
     const _newSunBarHTML=`<div style="padding:8px 0 10px;border-bottom:1px solid rgba(255,255,255,.10);">
@@ -3391,24 +3548,24 @@ ${minimalMode?`*,*::before,*::after{animation-duration:0.001s!important;animatio
         ${showForecastChart?solarChartSVG:''}
         <g transform="translate(${(173*(1-_roomScale)).toFixed(2)},0) scale(${_roomScale},1)">
         ${trunkSVG}
-        ${roomSVG}
+        ${showRoomsSection?roomSVG:''}
         </g>
-        ${roomSVGFree}
+        ${showRoomsSection?roomSVGFree:''}
 `; // end _newSvgDataHTML
 
     // ── Zone 4: BOT ───────────────────────────────────────────
     const _newBotHTML=`
-  <div style="padding:16px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px;">
+  <div style="padding:${showBatteryBar||showStatsCircles?'16px':'0'};">
+    ${showBatteryBar?`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-size:12px;">
       <span style="color:rgba(255,255,255,.6);">${T.battLabel}</span>
       <span style="font-weight:700;color:${bPct<=10?'#ef4444':bPct<=20?'#f59e0b':'#4ade80'}">${bPct}%</span>
     </div>
     <div style="height:7px;border-radius:4px;background:rgba(255,255,255,.10);overflow:hidden;margin-bottom:${battETA?'8px':'14px'}">
       <div style="height:100%;width:${bPct}%;border-radius:4px;background:${bColor};box-shadow:0 0 8px ${bGlow}"></div>
     </div>
-    ${battETA?`<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.65);margin-bottom:14px;">${battETA}</div>`:''}
+    ${battETA?`<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.65);margin-bottom:14px;">${battETA}</div>`:''}`:''}
 
-    ${(()=>{
+    ${showStatsCircles?(()=>{
       // ── Stats circles SVG (design from v1.6 YAML) ──────────
       const solarPct=parseFloat(dailyuse)+parseFloat(gridDaily)>0?Math.round(parseFloat(dailyuse)/(parseFloat(dailyuse)+parseFloat(gridDaily))*100):0;
       const gridPct=100-solarPct;
@@ -3418,8 +3575,10 @@ ${minimalMode?`*,*::before,*::after{animation-duration:0.001s!important;animatio
       const largeArcG=gridPct>50?'1':'0';
       const largeArcS=solarPct>50?'1':'0';
       const luxState2=this._g('inverter_status_entity','--');
-      const invTemp2=this._gf('inverter_temp_entity',0).toFixed(1);
-      const batTemp2=this._gf('battery_temp_entity',0).toFixed(1);
+      const _invTempRaw2=this._gf('inverter_temp_entity',0);
+      const _batTempRaw2=this._gf('battery_temp_entity',0);
+      const invTemp2=(useFahrenheit?_toDisplayTemp(_invTempRaw2).toFixed(0):_invTempRaw2.toFixed(1));
+      const batTemp2=(useFahrenheit?_toDisplayTemp(_batTempRaw2).toFixed(0):_batTempRaw2.toFixed(1));
       const isOff2=['--','unavailable','unknown','Unavailable'].includes(luxState2);
       const isNormal2=['Normal','normal','online','Online','ONLINE'].includes(luxState2);
       const stColor2=isNormal2?'#4ade80':isOff2?'#ff5050':'#ffc83c';
@@ -3561,13 +3720,13 @@ ${minimalMode?`*,*::before,*::after{animation-duration:0.001s!important;animatio
   <text x="980" y="72"  font-family="Orbitron,monospace"  font-size="22" font-weight="800" fill="${stColor2}" text-anchor="middle">${stLabel2}</text>
   <line x1="938" y1="82" x2="1022" y2="82" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
   <text x="980" y="102" font-family="Rajdhani,sans-serif" font-size="20" font-weight="600" fill="rgba(255,200,80,0.85)" text-anchor="middle">Inverter</text>
-  <text x="980" y="128" font-family="Orbitron,monospace"  font-size="24" font-weight="700" fill="rgba(255,200,80,1)"    text-anchor="middle">${invTemp2}°C</text>
+  <text x="980" y="128" font-family="Orbitron,monospace"  font-size="24" font-weight="700" fill="rgba(255,200,80,1)"    text-anchor="middle">${invTemp2}${_tempSuffix}</text>
   <line x1="938" y1="134" x2="1022" y2="134" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
   <text x="980" y="156" font-family="Rajdhani,sans-serif" font-size="20" font-weight="600" fill="rgba(80,200,255,0.85)" text-anchor="middle">Battery</text>
-  <text x="980" y="182" font-family="Orbitron,monospace"  font-size="24" font-weight="700" fill="rgba(80,200,255,1)"   text-anchor="middle">${batTemp2}°C</text>
+  <text x="980" y="182" font-family="Orbitron,monospace"  font-size="24" font-weight="700" fill="rgba(80,200,255,1)"   text-anchor="middle">${batTemp2}${_tempSuffix}</text>
 </g>
 </svg>`;
-    })()}
+    })():''}
 
   </div>
 `; // end _newBotHTML
