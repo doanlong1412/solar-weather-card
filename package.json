@@ -1,0 +1,30 @@
+{
+  "name": "power-flow-card",
+  "version": "0.1.0",
+  "description": "Animated energy flow card for Home Assistant with auto-detection, SVG rendering, and battery SOC arc.",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/power-flow-card.js --bundle --minify --outfile=dist/power-flow-card.js --format=esm --legal-comments=none",
+    "dev":   "esbuild src/power-flow-card.js --bundle --outfile=dist/power-flow-card.js --format=esm --sourcemap --watch",
+    "lint":  "eslint src/ --ext .js"
+  },
+  "dependencies": {
+    "lit": "^3.2.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.2"
+  },
+  "keywords": [
+    "home-assistant",
+    "lovelace",
+    "hacs",
+    "energy",
+    "solar",
+    "power-flow"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ajit-thapa/solar-weather-card"
+  }
+}

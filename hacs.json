@@ -1,5 +1,6 @@
 {
-  "name": "Solar Weather Card",
+  "name": "Power Flow Card",
   "render_readme": true,
-  "filename": "solar-weather-card.js"
+  "filename": "dist/power-flow-card.js",
+  "content_in_root": false
 }
